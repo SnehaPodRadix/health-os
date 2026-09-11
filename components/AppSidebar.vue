@@ -34,7 +34,7 @@ function isActive(to: string) {
       @click="navOpen = false"
     >Profile</NuxtLink>
     <div class="foot">
-      <div class="avatar">P</div>
+      <div class="avatar">V</div>
       <div class="who">
         <div class="name">Vikram</div>
         <div class="plan">Free plan</div>

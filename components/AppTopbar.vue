@@ -14,6 +14,6 @@ const navOpen = useState('ui-nav-open', () => false);
       <slot><span class="this">{{ crumb }}</span></slot>
     </div>
     <div style="flex: 1" />
-    <div class="avatar">P</div>
+    <div class="avatar">V</div>
   </div>
 </template>
