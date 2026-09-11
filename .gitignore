@@ -1,6 +1,7 @@
 # Nuxt / Nitro build output
 .nuxt
 .output
+.netlify
 .data
 dist
 

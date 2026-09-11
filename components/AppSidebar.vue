@@ -7,6 +7,7 @@ const links = [
   { label: 'Records', to: '/records' },
   { label: 'Chat', to: '/chat' }, // built by Saif
   { label: 'Insights', to: '/insights' },
+  { label: 'Shared', to: '/shared' }, // built by Saif
 ];
 
 function isActive(to: string) {
