@@ -1,0 +1,4278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAGE — Prototype v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400;0,500;0,700;1,500&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ===================== reset ===================== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: none; padding: 0; }
+a { color: inherit; text-decoration: none; }
+input, textarea { font: inherit; }
+
+/* ===================== tokens ===================== */
+:root {
+  --white: #FFFFFF;
+  --off-white: #F4F4F5;
+  --mint: #A4FFCF;
+  --mint-soft: rgba(164, 255, 207, 0.35);
+  --mint-quiet: rgba(164, 255, 207, 0.18);
+  --sage: #909482;
+  --sage-soft: rgba(144, 148, 130, 0.15);
+  --sage-line: rgba(144, 148, 130, 0.22);
+  --forest: #124434;
+  --forest-soft: rgba(18, 68, 52, 0.08);
+  --ink: #252525;
+  --ink-2: #4a4a4a;
+  --ink-3: #6b6b6b;
+  --ink-4: #909090;
+
+  --ink-black: #141414;
+  --grey-1: #F2F2F0;
+  --grey-2: #EAEAE7;
+  --pill-line: rgba(20, 20, 20, 0.14);
+  --glass-dark: rgba(37, 37, 37, 0.85);
+  --glass-dark-hover: rgba(15, 15, 15, 0.92);
+  --glass-sage: rgba(144, 148, 130, 0.7);
+  --glass-sage-hover: rgba(144, 148, 130, 0.82);
+  --glass-light: rgba(245, 245, 245, 0.7);
+  --glass-light-hover: rgba(245, 245, 245, 0.9);
+  --glass-white: rgba(255, 255, 255, 0.65);
+
+  --r: 6px;
+  --r-pill: 999px;
+  --r-round: 50%;
+
+  --shadow-glass: 0 1px 2px rgba(30, 40, 30, 0.04), 0 4px 20px rgba(30, 40, 30, 0.03);
+
+  --danger: #8b3a3a;
+  --danger-soft: rgba(139, 58, 58, 0.08);
+}
+
+/* ===================== base ===================== */
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: #E8EAE5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+}
+
+/* ===================== app frame ===================== */
+.app { display: flex; min-height: 100vh; }
+
+/* --- review scaffolding sidebar --- */
+.dev-nav {
+  width: 228px;
+  background: #0d0d0d;
+  color: #cccbc6;
+  padding: 22px 14px;
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto;
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 12.5px;
+}
+.dev-nav h1 {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; margin: 0 0 2px;
+  font-weight: 500; color: #fff;
+  letter-spacing: -0.015em;
+}
+.dev-nav .sub {
+  font-size: 11px; color: #7a7975;
+  margin-bottom: 22px;
+  letter-spacing: 0;
+}
+.dev-nav .group {
+  text-transform: uppercase; letter-spacing: 0.09em;
+  font-size: 10px; color: #66655f;
+  margin: 20px 0 4px; padding: 0 10px;
+}
+.dev-nav a {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 6px 10px; border-radius: 3px;
+  color: #a8a7a2; margin-bottom: 1px;
+  transition: background 0.08s, color 0.08s;
+}
+.dev-nav a:hover { background: #1a1a1a; color: #fff; }
+.dev-nav a.active { background: #124434; color: #A4FFCF; }
+.dev-nav a .num {
+  font-size: 10px; color: #55544f;
+  min-width: 18px; font-variant-numeric: tabular-nums;
+}
+.dev-nav a.active .num { color: #6ab48c; }
+.dev-nav .note {
+  font-size: 11px; color: #66655f;
+  margin-top: 24px; padding: 12px;
+  border: 1px solid #1e1e1c; border-radius: 3px;
+  line-height: 1.5;
+}
+
+/* stage + frame */
+.stage {
+  flex: 1;
+  padding: 32px;
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.frame {
+  width: 1200px;
+  min-height: 780px;
+  background: var(--white);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 12px 40px rgba(20,30,20,0.08),
+    0 30px 80px rgba(20,30,20,0.06);
+  isolation: isolate;
+}
+/* gradient background (fixed inside frame) */
+.frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 68% 58% at 92% 18%, rgba(164, 255, 207, 0.34), transparent 62%),
+    radial-gradient(ellipse 52% 48% at 78% 88%, rgba(144, 148, 130, 0.22), transparent 64%),
+    radial-gradient(ellipse 34% 30% at 100% 52%, rgba(18, 68, 52, 0.07), transparent 70%),
+    radial-gradient(ellipse 55% 60% at 18% 45%, rgba(255, 255, 255, 0.95) 0%, transparent 62%),
+    linear-gradient(105deg, #FBFCF9 0%, #FFFFFF 42%, #F3F6EF 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+/* grain overlay */
+.frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.055;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.screen { display: none; position: relative; z-index: 2; }
+.screen.active { display: block; }
+
+/* ===================== product shell ===================== */
+.pshell { display: flex; min-height: 780px; }
+.pnav {
+  width: 210px;
+  background: var(--glass-white);
+  border-right: 1px solid var(--sage-line);
+  padding: 22px 14px;
+  display: flex; flex-direction: column;
+  position: relative; z-index: 3;
+}
+.pnav .brand {
+  padding: 6px 8px 30px;
+  display: flex; align-items: center;
+}
+/* Logo is the supplied lockup, untouched. Width only — the viewBox
+   holds the proportions and the fills are the file's own. */
+.pnav .brand .logo {
+  width: 156px;
+  height: auto;
+  display: block;
+}
+.pnav .plink {
+  display: flex; align-items: center;
+  padding: 9px 12px;
+  border-radius: var(--r);
+  font-family: 'Geist', system-ui;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  margin-bottom: 2px;
+  letter-spacing: -0.005em;
+  transition: background 0.12s, color 0.12s;
+}
+.pnav .plink:hover { background: var(--glass-light); }
+.pnav .plink.active {
+  background: var(--mint-soft);
+  color: var(--forest);
+  font-weight: 600;
+}
+.pnav .divider {
+  height: 1px;
+  background: var(--sage-line);
+  margin: 14px 12px;
+}
+.pnav .foot {
+  margin-top: auto; padding: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.pnav .foot .avatar {
+  width: 30px; height: 30px;
+  border-radius: var(--r-round);
+  background: var(--forest);
+  color: var(--mint);
+  font-family: 'Familjen Grotesk';
+  font-weight: 500;
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pnav .foot .who .name {
+  font-size: 13px; font-weight: 500; color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.pnav .foot .who .plan { font-size: 11px; color: var(--ink-3); }
+
+.pmain {
+  flex: 1;
+  display: flex; flex-direction: column;
+  min-width: 0;
+  position: relative; z-index: 2;
+}
+.pbar {
+  height: 60px;
+  padding: 0 32px;
+  display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--sage-line);
+}
+.pbar .crumb {
+  font-family: 'Geist', system-ui;
+  font-size: 13px; color: var(--ink-3);
+}
+.pbar .crumb .this { color: var(--ink); font-weight: 500; }
+.pbar .crumb a { color: var(--ink-3); cursor: pointer; }
+.pbar .crumb a:hover { color: var(--forest); }
+.pbar .crumb .sep { margin: 0 8px; color: var(--ink-4); }
+.pbar .search {
+  margin-left: auto;
+  min-width: 260px;
+  height: 34px;
+  background: var(--glass-light);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 0 14px;
+  display: flex; align-items: center;
+  font-size: 12.5px;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.pbar .search:hover { border-color: var(--sage); }
+.pbar .avatar {
+  width: 30px; height: 30px;
+  border-radius: var(--r-round);
+  background: var(--forest);
+  color: var(--mint);
+  font-family: 'Familjen Grotesk';
+  font-weight: 500;
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pbody {
+  flex: 1;
+  padding: 44px 48px 60px;
+  overflow-y: auto;
+}
+.pbody-narrow { max-width: 820px; }
+.pbody-wide { max-width: 980px; }
+
+/* ===================== typography ===================== */
+.display {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.display-1 { font-size: 40px; }
+.display-2 { font-size: 32px; }
+.display-3 { font-size: 26px; }
+.h-hero {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  line-height: 1.15;
+  margin: 0;
+}
+.h-page {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 0;
+}
+.h-section {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin: 0;
+}
+.eyebrow {
+  font-family: 'Geist', system-ui;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+.sub {
+  font-family: 'Geist', system-ui;
+  font-size: 14px;
+  color: var(--ink-3);
+  margin: 0;
+  letter-spacing: -0.003em;
+  line-height: 1.5;
+}
+.small { font-size: 12px; }
+.tiny { font-size: 11px; }
+.muted { color: var(--ink-3); }
+.dim { color: var(--ink-4); }
+.strong { font-weight: 500; }
+.semi { font-weight: 600; }
+.tab { font-variant-numeric: tabular-nums; }
+.italic {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ===================== buttons =====================
+   One scale. Three roles.
+   primary   = .btn.dark    solid black
+   secondary = .btn.light   white fill, 1.25px black rule, black text
+   quiet     = .btn.ghost   text only
+   Heights: 44 / 36 / 30 / 24. Radius 5. Nothing else.
+   =================================================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 5px;
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1;
+  border: 1.25px solid transparent;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.16s cubic-bezier(.2,.8,.3,1),
+              background 0.16s ease,
+              border-color 0.16s ease,
+              box-shadow 0.2s cubic-bezier(.2,.8,.3,1),
+              color 0.16s ease;
+  white-space: nowrap;
+}
+.btn:active { transform: translateY(0.5px) scale(0.988); transition-duration: 0.05s; }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--white), 0 0 0 3.5px var(--ink-black);
+}
+
+/* sizes — same font family, same rhythm, only the scale changes */
+.btn.large { height: 44px; padding: 0 22px; font-size: 15px; letter-spacing: -0.016em; }
+.btn.small { height: 30px; padding: 0 12px; font-size: 12.5px; letter-spacing: -0.008em; }
+.btn.tiny  { height: 24px; padding: 0 9px;  font-size: 11.5px; border-radius: 4px; gap: 5px; }
+.btn.block { display: flex; width: 100%; }
+
+/* ---- PRIMARY: black ---- */
+.btn.dark {
+  background: var(--ink-black);
+  border-color: var(--ink-black);
+  color: var(--off-white);
+}
+.btn.dark:hover {
+  background: #000;
+  border-color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(20,20,20,0.18);
+}
+.btn.dark:active { transform: translateY(0) scale(0.988); box-shadow: none; }
+.btn.dark::before {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.14) 50%, transparent 68%);
+  transform: translateX(-120%);
+  transition: transform 0.5s cubic-bezier(.2,.7,.3,1);
+}
+.btn.dark:hover::before { transform: translateX(120%); }
+
+/* ---- SECONDARY: white fill, black rule, black text ---- */
+.btn.light,
+.btn.outline,
+.btn.sage {
+  background: var(--white);
+  border: 1.25px solid var(--ink-black);
+  color: var(--ink-black);
+  font-weight: 500;
+}
+.btn.light:hover,
+.btn.outline:hover,
+.btn.sage:hover {
+  background: var(--off-white);
+  border-color: #000;
+  transform: translateY(-1px);
+}
+.btn.light:active, .btn.outline:active, .btn.sage:active {
+  background: #EDEDED;
+  transform: translateY(0) scale(0.988);
+}
+
+/* ---- accent (kept, but no longer a primary) ---- */
+.btn.mint {
+  background: var(--mint);
+  border-color: var(--mint);
+  color: var(--forest);
+  font-weight: 600;
+}
+.btn.mint:hover { background: #8FF3BE; border-color: #8FF3BE; transform: translateY(-1px); }
+
+/* ---- QUIET ---- */
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-3);
+  padding: 0 10px;
+}
+.btn.ghost:hover { color: var(--ink-black); background: rgba(20,20,20,0.045); }
+
+/* icon-only round — matched to the 36px button height */
+.btn-round {
+  width: 36px; height: 36px;
+  border-radius: var(--r-round);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.25px solid var(--ink-black);
+  background: var(--white);
+  color: var(--ink-black);
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(.2,.8,.3,1);
+}
+.btn-round:hover { background: var(--off-white); transform: translateY(-1px); }
+.btn-round.mint {
+  background: var(--mint);
+  border-color: var(--mint);
+  color: var(--forest);
+}
+.btn-round.forest {
+  background: var(--ink-black);
+  border-color: var(--ink-black);
+  color: var(--white);
+}
+
+/* ===================== chips ===================== */
+.chip {
+  display: inline-flex; align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: var(--white);
+  color: var(--ink-2);
+  font-family: 'Geist', system-ui;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--pill-line);
+  box-shadow: 0 1px 1.5px rgba(30,40,30,0.04);
+  transition: background 0.14s, color 0.14s, border-color 0.14s, box-shadow 0.16s;
+  letter-spacing: -0.003em;
+}
+.chip:hover {
+  background: var(--white);
+  border-color: var(--ink-black);
+  color: var(--ink-black);
+  box-shadow: 0 2px 6px rgba(30,40,30,0.08);
+}
+.chip.on {
+  background: var(--ink-black);
+  border-color: var(--ink-black);
+  color: var(--white);
+  box-shadow: 0 2px 8px rgba(20,20,20,0.20);
+}
+.chip.on:hover { background: #000; color: var(--white); }
+.chip.on .count { color: rgba(255,255,255,0.6); }
+.chip .count {
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+.chip.mint {
+  background: var(--mint-soft);
+  border-color: rgba(18,68,52,0.18);
+  color: var(--forest);
+}
+.chip.small {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+.chip.status {
+  background: var(--mint-soft);
+  border-color: rgba(18,68,52,0.18);
+  color: var(--forest);
+  box-shadow: none;
+  height: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  letter-spacing: 0.01em;
+}
+.chip.status.low {
+  background: var(--danger-soft);
+  border-color: rgba(139,58,58,0.22);
+  color: var(--danger);
+}
+.chip.status.ok {
+  background: var(--mint-quiet);
+  color: var(--forest);
+}
+
+/* ===================== glass card ===================== */
+.glass-card {
+  background: var(--glass-white);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 20px 22px;
+}
+.glass-card.dark {
+  background: var(--glass-dark);
+  color: var(--off-white);
+  border: none;
+}
+.glass-card.light {
+  background: var(--glass-light);
+  border: none;
+}
+.glass-card.mint {
+  background: var(--mint-quiet);
+  border-color: rgba(164, 255, 207, 0.4);
+}
+
+/* ===================== divider list ===================== */
+.divider-list > .row {
+  display: flex; align-items: baseline; gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.divider-list > .row:last-child { border-bottom: none; }
+.divider-list.tight > .row { padding: 10px 0; }
+
+/* ===================== field ===================== */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.field label {
+  font-family: 'Geist', system-ui;
+  font-size: 12px; color: var(--ink-3);
+  font-weight: 500; letter-spacing: -0.003em;
+}
+.field .input {
+  height: 42px;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  background: var(--glass-white);
+  padding: 0 14px;
+  display: flex; align-items: center;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.field .input.empty { color: var(--ink-4); }
+.field .input.tall {
+  height: 90px; align-items: flex-start;
+  padding-top: 12px; line-height: 1.5;
+}
+
+/* ===================== toolbar row ===================== */
+.hstack { display: flex; align-items: center; gap: 12px; }
+.vstack { display: flex; flex-direction: column; gap: 8px; }
+.spacer { flex: 1; }
+
+.mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; } .mt-32 { margin-top: 32px; } .mt-40 { margin-top: 40px; } .mt-48 { margin-top: 48px; }
+
+/* ===================== bars for placeholder ===================== */
+.bar {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(144, 148, 130, 0.25);
+}
+.bar.dark { background: rgba(144, 148, 130, 0.4); }
+.bar.short { width: 40%; } .bar.med { width: 65%; } .bar.long { width: 92%; }
+
+/* =========================================================== */
+/* HERO IMAGERY PLACEHOLDER (soft atmospheric CSS blocks)      */
+/* =========================================================== */
+.hero-image {
+  border-radius: var(--r);
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 25% 30%, rgba(164, 255, 207, 0.5) 0%, transparent 45%),
+    radial-gradient(circle at 75% 80%, rgba(144, 148, 130, 0.4) 0%, transparent 55%),
+    radial-gradient(circle at 60% 45%, rgba(18, 68, 52, 0.15) 0%, transparent 40%),
+    linear-gradient(135deg, #E8F1E5 0%, #D5E2CC 50%, #C1D2B4 100%);
+}
+.hero-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n2'><feTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3'/><feColorMatrix values='0 0 0 0 0.15 0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0.7 0'/></filter><rect width='100%' height='100%' filter='url(%23n2)'/></svg>");
+  opacity: 0.35;
+  mix-blend-mode: soft-light;
+}
+.hero-image.tall { aspect-ratio: 3/4; }
+.hero-image.wide { aspect-ratio: 16/10; }
+.hero-image.square { aspect-ratio: 1/1; }
+
+/* =========================================================== */
+/* HOME                                                         */
+/* =========================================================== */
+.home-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 40px;
+}
+.home-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 40px; }
+
+/* Today panel */
+.today-list .today-item {
+  display: grid; grid-template-columns: 70px 1fr auto;
+  gap: 24px; align-items: baseline;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.today-list .today-item:last-child { border-bottom: none; }
+.today-list .today-item .when {
+  font-family: 'Geist', system-ui;
+  font-size: 11.5px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.today-list .today-item .body .title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+.today-list .today-item .body .meta {
+  font-size: 12.5px; color: var(--ink-3);
+  margin-top: 3px;
+  letter-spacing: -0.003em;
+}
+
+/* Recent list */
+.recent-list .recent-row {
+  display: grid; grid-template-columns: 66px 108px 1fr auto;
+  gap: 20px; align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: color 0.08s;
+}
+.recent-list .recent-row:last-child { border-bottom: none; }
+.recent-list .recent-row:hover .desc { color: var(--forest); }
+.recent-list .recent-row .date {
+  font-size: 12px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.003em;
+}
+.recent-list .recent-row .type {
+  font-family: 'Geist', system-ui;
+  font-size: 11.5px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.recent-list .recent-row .desc {
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  font-weight: 500;
+  transition: color 0.1s;
+}
+.recent-list .recent-row .src {
+  font-size: 12px; color: var(--ink-4);
+  letter-spacing: -0.003em;
+}
+
+.section-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+}
+.section-head .more {
+  font-size: 12.5px; color: var(--ink-3);
+  cursor: pointer;
+  font-weight: 500;
+}
+.section-head .more:hover { color: var(--forest); }
+
+/* Ask panel */
+/* Ask / shortcuts sit on grey, not white — they are a utility surface,
+   not content. Different material, same grid. */
+.ask-card {
+  padding: 20px;
+  background: var(--grey-1);
+  border-radius: 8px;
+  border: 1px solid rgba(20,20,20,0.06);
+}
+.ask-title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 16px; font-weight: 500;
+  letter-spacing: -0.012em;
+}
+.ask-input {
+  margin-top: 13px;
+  padding: 11px 13px;
+  background: var(--white);
+  border: 1px solid rgba(20,20,20,0.10);
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: border-color 0.14s, box-shadow 0.16s;
+}
+.ask-input:hover { border-color: var(--forest); }
+.ask-suggestions { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+.ask-link {
+  font-size: 12.5px; color: var(--forest);
+  cursor: pointer;
+  padding: 3px 0;
+  letter-spacing: -0.003em;
+}
+.ask-link:hover { color: var(--ink); }
+
+/* Shortcuts */
+/* shortcuts: grey tiles, not underlined rows */
+.shortcut-btn {
+  display: flex; align-items: center;
+  padding: 11px 13px;
+  margin-bottom: 5px;
+  background: var(--grey-1);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-family: 'Geist', system-ui;
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  letter-spacing: -0.003em;
+}
+.shortcut-btn:hover {
+  background: var(--grey-2);
+  border-color: rgba(20,20,20,0.12);
+  color: var(--ink-black);
+}
+/* highlighted shortcut — same rule as the secondary button */
+.shortcut-btn.primary {
+  background: var(--white);
+  border: 1.25px solid var(--ink-black);
+  color: var(--ink-black);
+}
+.shortcut-btn.primary:hover {
+  background: var(--off-white);
+  border-color: #000;
+  color: var(--ink-black);
+}
+.shortcut-btn.primary .arrow { color: var(--ink-black); }
+.shortcut-btn:last-child { margin-bottom: 0; }
+.shortcut-btn .arrow { margin-left: auto; color: var(--ink-4); font-size: 13px; }
+.shortcut-btn:hover .arrow { color: var(--ink-black); }
+
+/* =========================================================== */
+/* HOME EMPTY                                                   */
+/* =========================================================== */
+.empty-hero-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; align-items: stretch; }
+.empty-drop {
+  padding: 60px 40px 52px;
+  background: var(--glass-white);
+  border: 1.5px dashed var(--sage);
+  border-radius: var(--r);
+  text-align: center;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.empty-drop h2 {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 22px; font-weight: 500;
+  letter-spacing: -0.018em;
+  margin: 0 0 10px;
+  color: var(--ink);
+}
+.empty-drop p {
+  color: var(--ink-3); font-size: 13.5px;
+  max-width: 360px; margin: 0 auto 28px;
+  line-height: 1.55;
+}
+.empty-secondary { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 48px; }
+.empty-item { padding: 20px 0; border-top: 1px solid var(--sage-soft); }
+.empty-item .eyebrow { margin-bottom: 6px; }
+.empty-item .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; font-weight: 500; margin-bottom: 6px;
+  letter-spacing: -0.012em;
+}
+.empty-item p {
+  color: var(--ink-3); font-size: 13px;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+/* =========================================================== */
+/* RECORDS / TIMELINE                                          */
+/* =========================================================== */
+.filter-bar {
+  display: flex; gap: 7px; align-items: center;
+  margin-bottom: 28px; flex-wrap: wrap;
+  padding: 9px 11px;
+  background: var(--grey-1);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r-pill);
+}
+.filter-bar .sep {
+  width: 1px; height: 16px; background: rgba(144,148,130,0.4);
+  margin: 0 6px;
+}
+
+.timeline { margin-top: 8px; }
+.timeline-month {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-3); font-weight: 500;
+  margin: 32px 0 6px;
+  padding-top: 22px;
+  border-top: 1px solid var(--sage-soft);
+}
+.timeline-month:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.tl-entry {
+  display: grid; grid-template-columns: 62px 68px 1fr auto;
+  gap: 18px; align-items: baseline;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  cursor: pointer;
+}
+.tl-entry:last-child { border-bottom: none; }
+.tl-entry .day {
+  font-size: 12px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.tl-entry .cat {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--ink-4);
+  font-weight: 500;
+}
+.tl-entry .main .title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 14.5px; font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.008em;
+}
+.tl-entry .main .meta {
+  font-size: 12.5px; color: var(--ink-3);
+  margin-top: 4px;
+  letter-spacing: -0.003em;
+}
+.tl-entry .aside {
+  font-size: 12px; color: var(--ink-4);
+  text-align: right;
+  letter-spacing: -0.003em;
+}
+.tl-entry:hover .main .title { color: var(--forest); }
+.tl-entry .dot-flag {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--mint);
+  border-radius: 50%;
+  margin-left: 8px;
+  vertical-align: 2px;
+}
+
+/* mood chart */
+.trend-card {
+  padding: 26px 28px;
+  background: var(--glass-white);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  margin-bottom: 36px;
+}
+.trend-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 20px;
+}
+.trend-title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; font-weight: 500;
+  letter-spacing: -0.012em;
+}
+.trend-meta { font-size: 12.5px; color: var(--ink-3); }
+.mood-graph {
+  display: flex; align-items: flex-end;
+  gap: 4px; height: 62px;
+}
+.mood-graph .col {
+  flex: 1;
+  background: var(--forest);
+  opacity: 0.55;
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  transition: opacity 0.12s;
+}
+.mood-graph .col:hover { opacity: 0.9; }
+.mood-graph .col.peak { background: var(--mint); opacity: 0.9; }
+
+/* =========================================================== */
+/* CHAT                                                        */
+/* =========================================================== */
+.chat-body { display: flex; flex-direction: column; height: 720px; }
+.chat-header-note {
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--sage-soft);
+  font-family: 'Geist', system-ui;
+  font-size: 12px; color: var(--ink-3);
+  background: transparent;
+}
+.chat-messages {
+  flex: 1;
+  padding: 36px 48px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 24px;
+  max-width: 820px; width: 100%;
+  margin: 0 auto;
+}
+.chat-turn { display: flex; }
+.chat-turn.user { justify-content: flex-end; }
+.chat-msg { display: flex; flex-direction: column; gap: 8px; max-width: 78%; }
+.chat-turn.user .chat-msg { align-items: flex-end; }
+
+.bubble {
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-family: 'Geist', system-ui;
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+}
+.bubble.ai {
+  background: var(--glass-white);
+  border: 1px solid var(--sage-line);
+  border-top-left-radius: 3px;
+  color: var(--ink);
+}
+.bubble.user {
+  background: var(--glass-dark);
+  color: var(--off-white);
+  border-top-right-radius: 3px;
+}
+.bubble .ref {
+  display: inline-flex; align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  background: var(--off-white);
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin: 0 4px 10px 0;
+  font-weight: 500;
+}
+.bubble ul { margin: 10px 0 4px; padding-left: 20px; }
+.bubble li { margin-bottom: 6px; }
+
+/* per-message listen button */
+.listen-btn {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r-pill);
+  background: var(--glass-light);
+  font-family: 'Geist', system-ui;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  cursor: pointer;
+  overflow: hidden;
+  align-self: flex-start;
+  transition: border-color 0.12s, color 0.12s;
+}
+.listen-btn:hover { border-color: var(--forest); color: var(--forest); }
+.listen-btn .play {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px;
+  background: var(--white);
+  color: var(--forest);
+  border-right: 1px solid var(--sage-line);
+}
+.listen-btn:hover .play { background: var(--mint-soft); }
+.listen-btn .label {
+  padding: 0 8px;
+  display: inline-flex; align-items: center;
+  letter-spacing: -0.003em;
+}
+.listen-btn .lang-pick {
+  padding: 4px 10px 4px 6px;
+  display: inline-flex; align-items: center; gap: 4px;
+  border-left: 1px solid var(--sage-line);
+  color: var(--ink);
+  font-weight: 500;
+}
+.listen-btn .lang-pick:hover { background: var(--white); }
+.listen-btn .caret { font-size: 8px; color: var(--ink-4); }
+
+.listen-btn.playing {
+  border-color: var(--forest);
+  color: var(--forest);
+  background: var(--mint-quiet);
+}
+.listen-btn.playing .play {
+  background: var(--forest);
+  color: var(--mint);
+  border-right-color: var(--forest);
+}
+
+/* language pick popover */
+.listen-menu-wrap { position: relative; align-self: flex-start; }
+.listen-menu {
+  position: absolute;
+  top: calc(100% + 8px); left: 0;
+  min-width: 210px;
+  background: var(--white);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  box-shadow: 0 8px 32px rgba(20,30,20,0.10);
+  padding: 6px;
+  z-index: 20;
+}
+.listen-menu .head {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-3); font-weight: 500;
+  padding: 8px 10px 6px;
+}
+.listen-menu .opt {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.listen-menu .opt:hover { background: var(--off-white); }
+.listen-menu .opt.on { color: var(--forest); font-weight: 600; background: var(--mint-quiet); }
+.listen-menu .opt .check {
+  color: var(--forest);
+  font-size: 13px;
+}
+.listen-menu .opt.dim { color: var(--ink-4); }
+.listen-menu .foot {
+  padding: 10px 10px 4px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--sage-soft);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+/* voice bubble */
+.voice-bubble {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px;
+  background: var(--glass-dark);
+  color: var(--off-white);
+  border-radius: 12px;
+  border-top-right-radius: 3px;
+}
+.voice-bubble .mic-in { color: var(--mint); display: inline-flex; }
+.waveform { display: flex; align-items: center; gap: 2px; height: 26px; }
+.waveform span {
+  display: inline-block; width: 2.5px;
+  background: var(--mint);
+  border-radius: 1px;
+  opacity: 0.85;
+}
+.voice-bubble .dur {
+  font-family: 'Geist', system-ui;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+.voice-transcript {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-style: italic;
+  padding: 0 4px;
+  font-weight: 500;
+}
+.voice-transcript::before {
+  content: "→ ";
+  color: var(--ink-4);
+  font-style: normal;
+}
+
+/* composer */
+.chat-composer {
+  padding: 18px 48px 20px;
+  border-top: 1px solid var(--sage-soft);
+  display: flex; gap: 12px; align-items: center;
+  max-width: 820px; width: 100%; margin: 0 auto;
+}
+.chat-composer .mic-btn {
+  width: 44px; height: 44px;
+  border-radius: var(--r-round);
+  background: var(--white);
+  border: 1px solid var(--sage);
+  color: var(--forest);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+.chat-composer .mic-btn:hover {
+  background: var(--mint-soft);
+  border-color: var(--forest);
+}
+.chat-composer .mic-btn.recording {
+  background: var(--mint);
+  color: var(--forest);
+  border-color: var(--forest);
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+@keyframes rec-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(164, 255, 207, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(164, 255, 207, 0); }
+}
+.chat-composer .input {
+  flex: 1;
+  height: 44px;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 0 16px;
+  display: flex; align-items: center;
+  color: var(--ink-4);
+  font-size: 13.5px;
+  background: var(--white);
+}
+.chat-composer .send {
+  width: 44px; height: 44px;
+  border-radius: var(--r-round);
+  background: var(--mint);
+  color: var(--forest);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s;
+}
+.chat-composer .send:hover { background: #8FF3BE; }
+.composer-hint {
+  max-width: 820px; width: 100%; margin: 8px auto 0;
+  padding: 0 48px 14px;
+  font-size: 11.5px; color: var(--ink-4);
+  text-align: center;
+  letter-spacing: -0.003em;
+}
+
+/* chat empty */
+.chat-empty {
+  flex: 1;
+  padding: 48px 48px 20px;
+  display: flex; flex-direction: column;
+  max-width: 820px; margin: 0 auto; width: 100%;
+}
+.chat-empty-hero {
+  display: grid; grid-template-columns: 1.4fr 1fr;
+  gap: 40px;
+  align-items: center;
+  padding: 40px 0;
+}
+.chat-empty-hero .h {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 28px; font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.chat-empty-hero .h .italic { color: var(--forest); }
+.chat-empty-hero .s {
+  color: var(--ink-3); font-size: 14px;
+  margin: 12px 0 24px;
+  line-height: 1.55;
+  max-width: 360px;
+}
+.chat-empty .try-list {
+  margin-top: 4px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.chat-empty .try-item {
+  padding: 14px 18px;
+  background: var(--glass-white);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  font-size: 13.5px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.12s;
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.chat-empty .try-item:hover { border-color: var(--forest); }
+.chat-empty .try-item .go { color: var(--forest); font-size: 14px; }
+
+/* =========================================================== */
+/* INSIGHTS                                                    */
+/* =========================================================== */
+.insight-headline {
+  padding: 32px 34px 30px;
+  background: var(--glass-light);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  margin-bottom: 36px;
+}
+.insight-headline .k {
+  font-family: 'Geist', system-ui;
+  font-size: 11.5px; color: var(--ink-3);
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.insight-headline .v {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 22px; font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.insight-headline .v .accent {
+  color: var(--forest);
+  font-style: italic;
+}
+
+.observation {
+  padding: 26px 0;
+  border-top: 1px solid var(--sage-soft);
+}
+.observation:last-child { border-bottom: 1px solid var(--sage-soft); }
+.observation .obs-h {
+  display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px;
+}
+.observation .metric {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 17px; font-weight: 500;
+  letter-spacing: -0.012em;
+}
+.observation .delta {
+  font-size: 12.5px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.003em;
+}
+.observation p {
+  margin: 0; color: var(--ink-2);
+  font-size: 13.5px; max-width: 620px;
+  line-height: 1.6;
+}
+.observation .obs-actions { margin-top: 16px; display: flex; gap: 8px; }
+.mini-graph {
+  display: flex; align-items: flex-end;
+  gap: 4px; height: 34px; width: 160px;
+  margin-top: 12px;
+}
+.mini-graph .col {
+  flex: 1;
+  background: var(--sage);
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  opacity: 0.55;
+}
+.mini-graph .col:last-child { background: var(--forest); opacity: 0.9; }
+
+/* =========================================================== */
+/* PROFILE                                                     */
+/* =========================================================== */
+.profile-section {
+  padding-bottom: 36px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.profile-section:last-child { border-bottom: none; margin-bottom: 0; }
+.profile-section .eyebrow { margin-bottom: 18px; }
+.profile-row {
+  display: grid; grid-template-columns: 180px 1fr auto;
+  gap: 20px; padding: 14px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13.5px; align-items: center;
+}
+.profile-row:last-child { border-bottom: none; }
+.profile-row .k {
+  color: var(--ink-3); font-size: 13px;
+  letter-spacing: -0.003em;
+}
+.profile-row .v { color: var(--ink); font-weight: 500; letter-spacing: -0.005em; }
+.profile-row .edit {
+  font-size: 12.5px; color: var(--ink-3);
+  cursor: pointer;
+}
+.profile-row .edit:hover { color: var(--forest); }
+
+.care-list { display: flex; flex-direction: column; }
+.care-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.care-item:last-child { border-bottom: none; }
+.care-avatar {
+  width: 40px; height: 40px;
+  border-radius: var(--r-round);
+  background: var(--glass-light);
+  border: 1px solid var(--sage-line);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Familjen Grotesk', system-ui;
+  font-weight: 500;
+  color: var(--forest);
+  font-size: 14px;
+}
+.care-info { flex: 1; }
+.care-name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.care-role {
+  font-size: 12.5px; color: var(--ink-3);
+  margin-top: 3px; letter-spacing: -0.003em;
+}
+
+/* =========================================================== */
+/* MODALS                                                      */
+/* =========================================================== */
+.modal-wrap {
+  min-height: 780px;
+  background: rgba(20, 30, 25, 0.32);
+  padding: 60px 40px;
+  display: flex; justify-content: center;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.modal {
+  width: 640px;
+  background: var(--white);
+  border-radius: var(--r);
+  border: 1px solid var(--sage-line);
+  overflow: hidden;
+  align-self: flex-start;
+  box-shadow: 0 20px 60px rgba(20,30,20,0.15);
+}
+.modal-head {
+  padding: 20px 26px;
+  border-bottom: 1px solid var(--sage-soft);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-head .title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 16px; font-weight: 500;
+  letter-spacing: -0.012em;
+}
+.modal-head .close {
+  color: var(--ink-3);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.modal-head .close:hover { color: var(--ink); }
+.modal-body { padding: 26px; }
+.modal-foot {
+  padding: 16px 26px;
+  border-top: 1px solid var(--sage-soft);
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--glass-light);
+}
+.modal-foot .step {
+  font-size: 12px; color: var(--ink-3);
+  letter-spacing: -0.003em;
+}
+.modal-foot .actions { display: flex; gap: 8px; }
+
+/* source picker (trimmed to 3) */
+.source-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px; margin-top: 20px;
+}
+.source-opt {
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 24px 20px 22px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  background: var(--glass-white);
+}
+.source-opt:hover {
+  border-color: var(--forest);
+  background: var(--mint-quiet);
+}
+.source-opt .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; font-weight: 500;
+  margin-bottom: 6px;
+  letter-spacing: -0.012em;
+}
+.source-opt .hint {
+  font-size: 12px; color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* dropzone */
+.dropzone {
+  border: 1.5px dashed var(--sage);
+  border-radius: var(--r);
+  padding: 52px 24px;
+  text-align: center;
+  background: var(--glass-white);
+}
+.dropzone .title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 16px; font-weight: 500;
+  margin-bottom: 6px;
+  letter-spacing: -0.012em;
+}
+.dropzone .hint { font-size: 12.5px; color: var(--ink-3); }
+.file-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13.5px;
+}
+.file-row:last-child { border-bottom: none; }
+.file-row .thumb {
+  width: 32px; height: 42px;
+  background: var(--glass-light);
+  border: 1px solid var(--sage-line);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.file-row .name {
+  flex: 1;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+}
+.file-row .size {
+  color: var(--ink-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.file-row .remove {
+  color: var(--ink-3);
+  font-size: 12px;
+  cursor: pointer;
+}
+.file-row .remove:hover { color: var(--danger); }
+
+/* processing */
+.processing-split { display: grid; grid-template-columns: 190px 1fr; gap: 32px; }
+.doc-preview {
+  background: var(--glass-light);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 7px;
+  aspect-ratio: 3/4;
+}
+.extract-status {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--ink-3);
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.extract-status .pulse {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--forest);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.extract-item {
+  display: grid; grid-template-columns: 140px 1fr;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13.5px;
+}
+.extract-item:last-child { border-bottom: none; }
+.extract-item .k {
+  color: var(--ink-3); font-size: 13px;
+  letter-spacing: -0.003em;
+}
+.extract-item .v {
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.extract-item.pending .v {
+  color: var(--ink-4); font-weight: 400;
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+@keyframes skeleton {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.85; }
+}
+
+/* confirm */
+.confirm-header {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--sage-soft);
+  margin-bottom: 26px;
+}
+.confirm-header .eyebrow { margin-bottom: 6px; }
+.confirm-header .title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 20px; font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.25;
+}
+.confirm-header .sub-line {
+  margin-top: 6px;
+  font-size: 12.5px; color: var(--ink-3);
+  letter-spacing: -0.003em;
+}
+.confirm-fields {
+  margin-bottom: 32px;
+  border-top: 1px solid var(--sage-soft);
+  border-bottom: 1px solid var(--sage-soft);
+}
+.confirm-fields .cf {
+  display: grid; grid-template-columns: 140px 1fr auto;
+  gap: 20px; padding: 13px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13.5px;
+  align-items: baseline;
+}
+.confirm-fields .cf:last-child { border-bottom: none; }
+.confirm-fields .cf .k {
+  color: var(--ink-3); font-size: 13px;
+  letter-spacing: -0.003em;
+}
+.confirm-fields .cf .v {
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.confirm-fields .cf .edit {
+  font-size: 12px; color: var(--ink-3);
+  cursor: pointer;
+}
+.confirm-fields .cf .edit:hover { color: var(--forest); }
+
+.context-q {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.context-q:last-child { border-bottom: none; }
+.context-q .q {
+  font-size: 14px;
+  margin-bottom: 12px;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.context-q .opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.context-q .free {
+  padding: 10px 12px;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  font-size: 13px; color: var(--ink-4);
+  background: var(--glass-white);
+}
+
+/* =========================================================== */
+/* RECORD DETAIL                                               */
+/* =========================================================== */
+.detail-head {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--sage-soft);
+  margin-bottom: 28px;
+}
+.detail-head .eyebrow { margin-bottom: 8px; }
+.detail-head .meta {
+  display: flex; gap: 22px;
+  font-size: 12.5px; color: var(--ink-3);
+  margin-top: 12px;
+  letter-spacing: -0.003em;
+}
+
+.detail-toggle {
+  display: inline-flex;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  overflow: hidden;
+  font-family: 'Geist', system-ui;
+  font-size: 12.5px;
+  margin-bottom: 28px;
+  background: var(--glass-white);
+}
+.detail-toggle .seg {
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--ink-3);
+  border-right: 1px solid var(--sage-line);
+  font-weight: 500;
+  letter-spacing: -0.003em;
+}
+.detail-toggle .seg:last-child { border-right: none; }
+.detail-toggle .seg:hover { color: var(--forest); }
+.detail-toggle .seg.on {
+  background: var(--forest);
+  color: var(--mint);
+  border-color: var(--forest);
+}
+
+.detail-grid { display: grid; grid-template-columns: 1fr 260px; gap: 44px; }
+
+.value-list .val {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 20px;
+  align-items: baseline;
+}
+.value-list .val:last-child { border-bottom: none; }
+.value-list .val .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 15px; font-weight: 500;
+  letter-spacing: -0.012em;
+}
+.value-list .val .expl {
+  font-size: 12.5px; color: var(--ink-3);
+  margin-top: 6px;
+  max-width: 500px;
+  line-height: 1.55;
+  grid-column: 1;
+  letter-spacing: -0.003em;
+}
+.value-list .val .num {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 17px; font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.012em;
+}
+.value-list .val .num .unit {
+  font-family: 'Geist', system-ui;
+  font-size: 12px; color: var(--ink-3);
+  font-weight: 400;
+  margin-left: 3px;
+}
+
+.detail-side .side-block {
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--sage-soft);
+}
+.detail-side .side-block:last-child {
+  border-bottom: none; margin-bottom: 0; padding-bottom: 0;
+}
+
+.related-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+.related-item:last-child { border-bottom: none; }
+.related-item .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+}
+.related-item .meta {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 3px;
+}
+.related-item:hover .name { color: var(--forest); }
+
+/* =========================================================== */
+/* SEARCH                                                      */
+/* =========================================================== */
+.search-input {
+  width: 100%;
+  padding: 18px 22px;
+  border: 1.5px solid var(--forest);
+  border-radius: var(--r);
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  background: var(--white);
+  color: var(--ink);
+  letter-spacing: -0.015em;
+  outline: none;
+}
+.search-input::placeholder { color: var(--ink-4); }
+.search-hint {
+  font-size: 12px; color: var(--ink-3);
+  margin-bottom: 36px;
+  padding-left: 4px;
+}
+.search-answer {
+  background: var(--mint-quiet);
+  border-left: 3px solid var(--forest);
+  padding: 22px 26px;
+  margin-bottom: 36px;
+  border-radius: 0 4px 4px 0;
+}
+.search-answer .a-label {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; color: var(--forest);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 10px; font-weight: 600;
+}
+.search-answer p {
+  margin: 0; font-size: 14.5px;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.search-suggestions { display: flex; flex-direction: column; gap: 6px; }
+.search-suggestions .chip { width: fit-content; }
+
+/* =========================================================== */
+/* LANGUAGE / PLAIN                                            */
+/* =========================================================== */
+.lang-controls {
+  display: flex; gap: 36px; flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+.lang-controls .g .eyebrow { margin-bottom: 10px; }
+.lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  overflow: hidden;
+  font-family: 'Geist', system-ui;
+  font-size: 12.5px;
+  background: var(--glass-white);
+}
+.lang-toggle .seg {
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--ink-3);
+  border-right: 1px solid var(--sage-line);
+  font-weight: 500;
+  letter-spacing: -0.003em;
+}
+.lang-toggle .seg:last-child { border-right: none; }
+.lang-toggle .seg:hover { color: var(--forest); }
+.lang-toggle .seg.on {
+  background: var(--forest);
+  color: var(--mint);
+  border-color: var(--forest);
+}
+
+.parallel {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.parallel .col {
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 26px 28px;
+  background: var(--glass-white);
+}
+.parallel .col.plain {
+  background: var(--mint-quiet);
+  border-color: rgba(164, 255, 207, 0.5);
+}
+.parallel .col .col-head {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-3);
+  margin-bottom: 18px;
+  font-weight: 500;
+}
+.parallel .col.plain .col-head { color: var(--forest); }
+.term-line {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13.5px;
+}
+.parallel .col.plain .term-line { border-bottom-color: rgba(18, 68, 52, 0.1); }
+.term-line:last-child { border-bottom: none; }
+.term-line .term {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+}
+.term-line .expl {
+  font-size: 12.5px; color: var(--ink-3);
+  margin-top: 5px; line-height: 1.55;
+  max-width: 380px;
+  letter-spacing: -0.003em;
+}
+.parallel .col.plain .term-line .expl { color: var(--ink-2); }
+
+/* =========================================================== */
+/* SUMMARY                                                     */
+/* =========================================================== */
+.summary-wizard {
+  display: grid; grid-template-columns: 220px 1fr;
+  gap: 52px;
+}
+.wizard-steps {
+  display: flex; flex-direction: column;
+}
+.wizard-step {
+  padding: 11px 16px;
+  border-left: 2px solid var(--sage-line);
+  font-family: 'Geist', system-ui;
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex; align-items: baseline; gap: 12px;
+  letter-spacing: -0.003em;
+}
+.wizard-step .num {
+  font-size: 11px; color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+}
+.wizard-step.done { color: var(--ink); }
+.wizard-step.done .num { color: var(--ink-3); }
+.wizard-step.on {
+  color: var(--forest);
+  border-left-color: var(--forest);
+  font-weight: 600;
+  background: var(--mint-quiet);
+}
+.wizard-step.on .num { color: var(--forest); }
+
+.purpose-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.purpose-opt {
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 18px 20px;
+  cursor: pointer;
+  background: var(--glass-white);
+  transition: all 0.15s;
+}
+.purpose-opt:hover { border-color: var(--sage); }
+.purpose-opt.on {
+  border-color: var(--forest);
+  background: var(--mint-quiet);
+  border-width: 1.5px;
+}
+.purpose-opt .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-weight: 500;
+  font-size: 15px;
+  margin-bottom: 5px;
+  letter-spacing: -0.012em;
+}
+.purpose-opt .hint {
+  font-size: 12px; color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.sum-preview {
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 28px 32px;
+  max-height: 400px; overflow-y: auto;
+  background: var(--white);
+}
+.sum-preview .sum-title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 16px; font-weight: 500;
+  letter-spacing: -0.012em;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.sum-preview .sum-basics {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.sum-preview .sh {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-3);
+  margin: 22px 0 10px;
+  font-weight: 600;
+}
+.sum-preview p { font-size: 13.5px; margin: 0 0 8px; line-height: 1.55; color: var(--ink); }
+.sum-preview ul { margin: 0 0 8px; padding-left: 20px; font-size: 13.5px; }
+.sum-preview li { margin-bottom: 5px; color: var(--ink); }
+.sum-note {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--sage-line);
+  font-size: 12px; color: var(--ink-3);
+  letter-spacing: -0.003em;
+}
+
+/* =========================================================== */
+/* SHARE                                                       */
+/* =========================================================== */
+.share-methods {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 26px;
+}
+.share-method {
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  padding: 18px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--glass-white);
+  transition: all 0.15s;
+}
+.share-method:hover { border-color: var(--sage); }
+.share-method.on {
+  border-color: var(--forest);
+  background: var(--mint-quiet);
+  border-width: 1.5px;
+}
+.share-method .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 14px; font-weight: 500;
+  margin-bottom: 4px;
+  letter-spacing: -0.008em;
+}
+.share-method .hint {
+  font-size: 12px; color: var(--ink-3);
+}
+
+.share-link {
+  padding: 14px 16px;
+  background: var(--glass-light);
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.share-scope { margin-top: 22px; }
+.share-scope .eyebrow { margin-bottom: 10px; }
+.scope-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13px;
+}
+.scope-row:last-child { border-bottom: none; }
+.scope-row .box {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--sage);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.scope-row.on .box {
+  background: var(--forest);
+  border-color: var(--forest);
+  position: relative;
+}
+.scope-row.on .box::after {
+  content: '';
+  position: absolute; top: 2px; left: 5px;
+  width: 3px; height: 7px;
+  border: 1.5px solid var(--mint);
+  border-top: 0; border-left: 0;
+  transform: rotate(45deg);
+}
+.scope-row .label { flex: 1; letter-spacing: -0.003em; }
+.scope-row .val-tag {
+  font-size: 11.5px; color: var(--ink-3);
+}
+
+.access-block {
+  margin-top: 22px;
+  padding: 18px 20px;
+  background: var(--glass-light);
+  border-radius: var(--r);
+}
+.access-row {
+  display: grid; grid-template-columns: 130px 1fr;
+  gap: 16px; padding: 8px 0;
+  align-items: center;
+  font-size: 13px;
+}
+.access-row .k {
+  color: var(--ink-3); font-size: 12.5px;
+  letter-spacing: -0.003em;
+}
+
+/* =========================================================== */
+/* TOAST                                                       */
+/* =========================================================== */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: var(--forest);
+  color: var(--mint);
+  padding: 12px 18px;
+  border-radius: var(--r);
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(18, 68, 52, 0.25);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+/* =========================================================== */
+/* SHARE DRAWER                                                */
+/* Slides in from right, overlays whatever screen you're on.   */
+/* Never leaves context.                                        */
+/* =========================================================== */
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 30, 25, 0.28);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s;
+}
+.drawer-scrim.open { opacity: 1; pointer-events: auto; }
+
+.drawer {
+  position: absolute;
+  top: 0; right: 0;
+  height: 100%;
+  width: 460px;
+  background: var(--white);
+  border-left: 1px solid var(--sage-line);
+  box-shadow: -12px 0 40px rgba(20,30,20,0.10);
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0.15, 1);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.drawer.open { transform: translateX(0); }
+
+.drawer-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--sage-soft);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.drawer-head .title {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 17px; font-weight: 500;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+.drawer-head .close {
+  color: var(--ink-3);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  background: none; border: none;
+}
+.drawer-head .close:hover { color: var(--ink); }
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 24px 24px;
+}
+.drawer-foot {
+  padding: 16px 24px;
+  border-top: 1px solid var(--sage-soft);
+  background: var(--glass-light);
+}
+
+.drawer-source {
+  padding: 14px 16px;
+  background: var(--glass-light);
+  border-radius: var(--r);
+  border: 1px solid var(--sage-line);
+  margin-bottom: 22px;
+}
+.drawer-source .k {
+  font-family: 'Geist', system-ui;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-3); font-weight: 500;
+  margin-bottom: 4px;
+}
+.drawer-source .v {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 14.5px; font-weight: 500;
+  letter-spacing: -0.008em;
+}
+.drawer-source .switch {
+  font-size: 12px; color: var(--forest);
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 6px;
+  display: inline-block;
+}
+.drawer-source .switch:hover { color: var(--ink); }
+
+.drawer-section { margin-bottom: 24px; }
+.drawer-section .eyebrow { margin-bottom: 10px; }
+
+.depth-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.delivery-tabs {
+  display: flex;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--glass-white);
+}
+.delivery-tabs .tab {
+  flex: 1;
+  padding: 10px 12px;
+  font-family: 'Geist', system-ui;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-align: center;
+  cursor: pointer;
+  border-right: 1px solid var(--sage-line);
+  letter-spacing: -0.003em;
+  background: none; border-top: none; border-bottom: none; border-left: none;
+}
+.delivery-tabs .tab:last-child { border-right: none; }
+.delivery-tabs .tab.on {
+  background: var(--forest);
+  color: var(--mint);
+}
+
+.drawer-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  font-size: 13px;
+  gap: 12px;
+}
+.drawer-row:last-child { border-bottom: none; }
+.drawer-row .k {
+  color: var(--ink-3);
+  letter-spacing: -0.003em;
+}
+.drawer-row .v {
+  color: var(--ink);
+  font-weight: 500;
+}
+.mini-chips { display: flex; gap: 4px; }
+
+.drawer-summary {
+  font-family: 'Geist', system-ui;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+  letter-spacing: -0.003em;
+}
+.drawer-summary strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Template picker (nested view inside drawer) */
+.template-list { display: flex; flex-direction: column; gap: 8px; }
+.template-opt {
+  padding: 14px 16px;
+  border: 1px solid var(--sage-line);
+  border-radius: var(--r);
+  background: var(--glass-white);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.template-opt:hover { border-color: var(--forest); background: var(--mint-quiet); }
+.template-opt .name {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 14px; font-weight: 500;
+  letter-spacing: -0.008em;
+  margin-bottom: 3px;
+}
+.template-opt .hint {
+  font-size: 12px; color: var(--ink-3);
+  letter-spacing: -0.003em;
+}
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--ink-3);
+  cursor: pointer;
+  margin-bottom: 16px;
+  font-weight: 500;
+  background: none; border: none; padding: 0;
+}
+.back-link:hover { color: var(--forest); }
+
+.drawer-view { display: none; flex-direction: column; height: 100%; }
+.drawer-view.active { display: flex; }
+
+/* =========================================================== */
+/* SHARED TAB                                                  */
+/* =========================================================== */
+.shared-list { display: flex; flex-direction: column; }
+.share-item {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--sage-soft);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: baseline;
+}
+.share-item:last-child { border-bottom: none; }
+.share-item .who {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 16px; font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.share-item .what {
+  font-size: 13px; color: var(--ink-2);
+  margin-bottom: 8px;
+  letter-spacing: -0.003em;
+  line-height: 1.5;
+}
+.share-item .meta {
+  font-size: 12px; color: var(--ink-3);
+  display: flex; gap: 14px;
+  letter-spacing: -0.003em;
+  align-items: center;
+}
+.share-item .meta .dot { color: var(--sage); }
+.share-item .actions {
+  display: flex; gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.status-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px;
+  color: var(--forest);
+  font-weight: 500;
+  padding: 3px 10px;
+  background: var(--mint-quiet);
+  border-radius: var(--r-pill);
+  letter-spacing: -0.003em;
+}
+.status-tag .live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--mint);
+}
+.status-tag.expiring {
+  background: rgba(200, 150, 40, 0.12);
+  color: #7a5a10;
+}
+.status-tag.expiring .live-dot { background: #c89628; }
+
+/* =====================================================================
+   MICRO-INTERACTION LAYER
+   Additive only. Nothing here is load-bearing — if it all failed,
+   every screen still renders and every data-goto still navigates.
+   Base opacity is never 0; fades live inside keyframes only.
+   ===================================================================== */
+
+/* --- click ripple (injected by JS, styled here) --- */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple-out 0.5s cubic-bezier(.2,.7,.3,1);
+  background: currentColor;
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: -1;
+}
+@keyframes ripple-out { to { transform: scale(2.6); opacity: 0; } }
+
+/* --- screen entry: content rises in --- */
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.screen.active .pmain { animation: screen-in 0.28s cubic-bezier(.2,.8,.3,1) both; }
+.screen.active .pnav  { animation: screen-in 0.22s ease both; }
+
+/* --- staggered list reveal --- */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.screen.active .extract-item,
+.screen.active .tl-entry,
+.screen.active .observation,
+.screen.active .care-item,
+.screen.active .source-opt {
+  animation: row-in 0.34s cubic-bezier(.2,.8,.3,1) both;
+}
+.screen.active .extract-item:nth-child(1), .screen.active .tl-entry:nth-child(1),
+.screen.active .observation:nth-child(1), .screen.active .care-item:nth-child(1),
+.screen.active .source-opt:nth-child(1) { animation-delay: 0.04s; }
+.screen.active .extract-item:nth-child(2), .screen.active .tl-entry:nth-child(2),
+.screen.active .observation:nth-child(2), .screen.active .care-item:nth-child(2),
+.screen.active .source-opt:nth-child(2) { animation-delay: 0.10s; }
+.screen.active .extract-item:nth-child(3), .screen.active .tl-entry:nth-child(3),
+.screen.active .observation:nth-child(3), .screen.active .care-item:nth-child(3),
+.screen.active .source-opt:nth-child(3) { animation-delay: 0.16s; }
+.screen.active .extract-item:nth-child(4), .screen.active .tl-entry:nth-child(4),
+.screen.active .observation:nth-child(4), .screen.active .care-item:nth-child(4),
+.screen.active .source-opt:nth-child(4) { animation-delay: 0.22s; }
+.screen.active .extract-item:nth-child(5), .screen.active .tl-entry:nth-child(5),
+.screen.active .care-item:nth-child(5) { animation-delay: 0.28s; }
+.screen.active .extract-item:nth-child(n+6),
+.screen.active .tl-entry:nth-child(n+6) { animation-delay: 0.34s; }
+
+/* --- chat messages arrive rather than appear --- */
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.screen.active .chat-turn { animation: bubble-in 0.36s cubic-bezier(.2,.8,.3,1) both; }
+.screen.active .chat-turn:nth-child(1) { animation-delay: 0.06s; }
+.screen.active .chat-turn:nth-child(2) { animation-delay: 0.16s; }
+.screen.active .chat-turn:nth-child(3) { animation-delay: 0.26s; }
+.screen.active .chat-turn:nth-child(4) { animation-delay: 0.36s; }
+.screen.active .chat-turn:nth-child(n+5) { animation-delay: 0.44s; }
+
+/* --- cards and rows lift on hover --- */
+.glass-card, .trend-card, .ask-card, .related-item,
+.source-opt, .purpose-opt, .share-method, .empty-drop, .tl-entry {
+  transition: transform 0.2s cubic-bezier(.2,.8,.3,1),
+              box-shadow 0.24s cubic-bezier(.2,.8,.3,1),
+              border-color 0.16s ease,
+              background 0.16s ease;
+}
+.source-opt:hover, .purpose-opt:hover, .share-method:hover, .related-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--forest);
+  box-shadow: 0 6px 20px rgba(18,68,52,0.08);
+}
+.glass-card:hover, .trend-card:hover {
+  box-shadow: 0 2px 6px rgba(30,40,30,0.05), 0 12px 34px rgba(30,40,30,0.07);
+}
+.empty-drop:hover { border-color: var(--forest); background: var(--mint-quiet); }
+.tl-entry:hover { background: var(--forest-soft); }
+
+/* --- row arrows travel --- */
+.shortcut-btn .arrow, .ask-link, .related-item {
+  transition: transform 0.2s cubic-bezier(.2,.8,.3,1), color 0.14s ease;
+}
+.shortcut-btn:hover .arrow { transform: translateX(4px); }
+.ask-link:hover { transform: translateX(3px); color: var(--forest); }
+
+/* --- sidebar nav: active marker slides in --- */
+.pnav a, .pnav [data-goto] { position: relative; }
+.pnav a::after, .pnav [data-goto]::after {
+  content: ""; position: absolute; left: 0; top: 50%;
+  width: 2px; height: 0; background: var(--forest);
+  border-radius: 2px;
+  transform: translateY(-50%);
+  transition: height 0.24s cubic-bezier(.2,.8,.3,1);
+}
+.pnav a:hover::after, .pnav [data-goto]:hover::after,
+.pnav a.active::after { height: 60%; }
+.dev-nav a { transition: background 0.12s, color 0.12s, padding-left 0.16s; }
+.dev-nav a:hover { padding-left: 14px; }
+
+/* --- chips press --- */
+.chip { transition: transform 0.14s cubic-bezier(.2,.8,.3,1), background 0.14s, border-color 0.14s, color 0.14s; }
+.chip:hover { transform: translateY(-1px); }
+.chip:active { transform: scale(0.95); }
+
+/* --- inputs focus --- */
+.ask-input, .search-input, .chat-composer .input, .field input, .field textarea {
+  transition: border-color 0.16s ease, box-shadow 0.2s ease, background 0.16s ease;
+}
+.ask-input:hover, .search-input:hover, .chat-composer .input:hover {
+  border-color: var(--sage);
+}
+.ask-input:focus-within, .search-input:focus-within, .chat-composer .input:focus-within,
+.field input:focus, .field textarea:focus {
+  border-color: var(--forest);
+  box-shadow: 0 0 0 3px var(--mint-soft);
+  outline: none;
+}
+
+/* --- round icon buttons --- */
+.btn-round, .listen-btn, .chat-composer .send, .chat-composer .mic-btn {
+  transition: transform 0.16s cubic-bezier(.2,.8,.3,1), background 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.2s;
+}
+.btn-round:hover, .listen-btn:hover { transform: translateY(-1.5px); }
+.btn-round:active, .listen-btn:active, .chat-composer .send:active, .chat-composer .mic-btn:active {
+  transform: scale(0.92);
+}
+/* send is a primary action — black, to match */
+.chat-composer .send {
+  background: var(--ink-black);
+  color: var(--off-white);
+}
+.chat-composer .send:hover {
+  background: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(20,20,20,0.18);
+}
+.chat-composer .send svg { transition: transform 0.2s cubic-bezier(.2,.8,.3,1); }
+.chat-composer .send:hover svg { transform: translateX(2px); }
+
+/* --- waveform actually moves while playing --- */
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.45); }
+  50%      { transform: scaleY(1); }
+}
+.voice-bubble .waveform span,
+.listen-btn.playing ~ * .waveform span {
+  transform-origin: center;
+  animation: wave 1s ease-in-out infinite;
+}
+.voice-bubble .waveform span:nth-child(3n)   { animation-delay: 0.12s; }
+.voice-bubble .waveform span:nth-child(3n+1) { animation-delay: 0.26s; }
+.voice-bubble .waveform span:nth-child(3n+2) { animation-delay: 0.40s; }
+
+/* playing state gets a breathing ring */
+.listen-btn.playing { animation: rec-pulse 1.8s ease-in-out infinite; }
+
+/* --- toast springs up --- */
+.toast {
+  transform: translateX(-50%) translateY(14px) scale(0.96);
+  transition: opacity 0.18s ease, transform 0.34s cubic-bezier(.18,.9,.28,1.2);
+}
+.toast.show { transform: translateX(-50%) translateY(-4px) scale(1); }
+
+/* --- respect the OS setting; also the safety hatch if motion misbehaves --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="sage-mark" viewBox="0 0 141.75 45.4">
+<path d="M40.25 25.3901L40.85 20.5701L41.24 20.5401C42.34 24.4401 45.14 26.7001 50.31 26.7801C54.42 26.8501 58.81 25.0401 58.81 21.0001C58.81 12.5001 41.31 18.3801 41.31 8.49015C41.31 4.52015 45.28 1.65015 51.62 1.65015C54.77 1.65015 58.42 2.32015 60.34 3.21015L59.84 7.57015H59.49C58.29 4.06015 54.6 2.29015 50.84 2.29015C46.7 2.33015 43.83 4.31015 43.83 7.25015C43.83 15.1201 61.54 9.69015 61.44 19.6101C61.37 24.7101 56.55 27.3301 50.17 27.4001C45.35 27.4301 42.13 26.3701 40.25 25.3801V25.3901Z" fill="#124434"/>
+<path d="M66.41 20.0001L76.44 1.90015H76.9L87.74 22.0201C89.9 26.0201 90.43 26.4501 91.07 26.5501V26.9001H83.77V26.5501C84.8 26.4101 86.32 25.8101 84.27 22.0201L80.87 15.6401H69.57L67.13 20.0301C64.47 24.8801 65.89 26.4101 66.95 26.5501V26.9001H61.32V26.5501C62.13 26.2001 63.02 26.1601 66.42 20.0001H66.41ZM80.55 15.0401L75.31 5.26015L69.89 15.0401H80.56H80.55Z" fill="#124434"/>
+<path d="M90.37 14.5401C90.37 6.96011 96.46 1.61011 105.07 1.61011C108.82 1.61011 112.55 2.53011 114.32 3.56011L113.93 7.74011H113.58C112.41 4.16011 108.8 2.21011 104.97 2.21011C98.52 2.21011 93.63 6.78011 93.63 14.3301C93.63 21.8801 98.38 26.7301 104.37 26.8001C109.12 26.7701 112.34 24.3901 112.34 20.5301V18.4701C112.34 15.3201 110.99 14.7901 109.93 14.5401V14.1901H116.73V14.5401C115.99 14.7901 115.1 15.3201 115.1 18.4701V23.9301C112.19 26.1301 108.12 27.4001 104.08 27.4001C95.86 27.4001 90.37 22.0501 90.37 14.5401Z" fill="#124434"/>
+<path d="M118.52 26.9101V26.5601C119.26 26.3101 120.18 25.7801 120.18 22.6301V6.39011C120.18 3.24011 119.26 2.71011 118.52 2.46011V2.11011H139.32L140.17 6.04011L139.89 6.15011C138.08 3.49011 134.68 2.78011 126.46 2.71011C123.94 2.71011 123.24 3.60011 123.24 5.83011V13.4801H129.44C133.9 13.4801 135.18 12.3501 135.6 10.8901H135.95V16.6601H135.6C135.17 15.2101 133.9 14.0701 129.44 14.0701H123.24V23.1401C123.24 25.3401 123.84 26.2901 126.43 26.2901C135.78 26.2601 138.12 25.4801 140.6 22.1101L140.88 22.2901L139.68 26.9001H118.53L118.52 26.9101Z" fill="#124434"/>
+<path d="M40.72 43.1302V33.6902H41.36V40.3302L45.57 36.0902H46.42L43.42 39.1102L46.64 43.1402H45.87L42.99 39.5302L41.37 41.1502V43.1402H40.73L40.72 43.1302Z" fill="#124434"/>
+<path d="M47.86 43.1302V36.0902H48.46L48.49 37.9802L48.4 37.9402C48.46 37.5002 48.61 37.1302 48.84 36.8302C49.07 36.5302 49.36 36.3102 49.7 36.1602C50.04 36.0102 50.42 35.9302 50.82 35.9302C51.35 35.9302 51.79 36.0502 52.14 36.2902C52.49 36.5302 52.74 36.8502 52.91 37.2502C53.08 37.6502 53.16 38.1002 53.16 38.6002V43.1302H52.52V38.9202C52.52 38.4402 52.46 38.0202 52.33 37.6702C52.2 37.3102 52.01 37.0302 51.74 36.8302C51.47 36.6302 51.12 36.5302 50.68 36.5302C50.02 36.5302 49.49 36.7502 49.09 37.1802C48.7 37.6102 48.5 38.1902 48.5 38.9202V43.1302H47.86Z" fill="#124434"/>
+<path d="M57.83 43.2902C57.21 43.2902 56.67 43.1402 56.21 42.8402C55.75 42.5402 55.39 42.1102 55.14 41.5602C54.89 41.0102 54.76 40.3602 54.76 39.6102C54.76 38.8602 54.89 38.2102 55.14 37.6602C55.39 37.1102 55.75 36.6802 56.21 36.3802C56.67 36.0802 57.21 35.9302 57.83 35.9302C58.45 35.9302 58.99 36.0802 59.45 36.3802C59.91 36.6802 60.27 37.1102 60.52 37.6602C60.77 38.2102 60.9 38.8602 60.9 39.6102C60.9 40.3602 60.77 41.0102 60.52 41.5602C60.27 42.1102 59.91 42.5402 59.45 42.8402C58.99 43.1402 58.45 43.2902 57.83 43.2902ZM57.83 42.6702C58.57 42.6702 59.16 42.4002 59.59 41.8502C60.02 41.3002 60.23 40.5602 60.23 39.6102C60.23 38.6602 60.02 37.9102 59.59 37.3702C59.16 36.8302 58.58 36.5502 57.83 36.5502C57.08 36.5502 56.5 36.8202 56.08 37.3702C55.65 37.9202 55.44 38.6602 55.44 39.6102C55.44 40.5602 55.65 41.3002 56.08 41.8502C56.51 42.4002 57.09 42.6702 57.83 42.6702Z" fill="#124434"/>
+<path d="M63.89 43.1301L61.58 36.0901H62.27L64.29 42.4801L66.2 36.0901H66.86L68.76 42.4801L70.78 36.0901H71.47L69.16 43.1301H68.36L66.53 37.0501L64.67 43.1301H63.89Z" fill="#124434"/>
+<path d="M76.4 45.1201V44.5501H77.02C77.36 44.5501 77.61 44.4901 77.76 44.3801C77.92 44.2601 78.05 44.0601 78.16 43.7701L78.45 43.0001H78.17L75.46 36.0901H76.15L78.62 42.4801L80.93 36.0901H81.62L78.7 44.0001C78.55 44.4101 78.35 44.7001 78.11 44.8701C77.87 45.0401 77.51 45.1301 77.05 45.1301H76.39L76.4 45.1201Z" fill="#124434"/>
+<path d="M85.38 43.2902C84.76 43.2902 84.22 43.1402 83.76 42.8402C83.3 42.5402 82.94 42.1102 82.69 41.5602C82.44 41.0102 82.31 40.3602 82.31 39.6102C82.31 38.8602 82.44 38.2102 82.69 37.6602C82.94 37.1102 83.3 36.6802 83.76 36.3802C84.22 36.0802 84.76 35.9302 85.38 35.9302C86 35.9302 86.54 36.0802 87 36.3802C87.46 36.6802 87.82 37.1102 88.07 37.6602C88.32 38.2102 88.45 38.8602 88.45 39.6102C88.45 40.3602 88.32 41.0102 88.07 41.5602C87.82 42.1102 87.46 42.5402 87 42.8402C86.54 43.1402 86 43.2902 85.38 43.2902ZM85.38 42.6702C86.12 42.6702 86.71 42.4002 87.14 41.8502C87.57 41.3002 87.78 40.5602 87.78 39.6102C87.78 38.6602 87.57 37.9102 87.14 37.3702C86.71 36.8302 86.13 36.5502 85.38 36.5502C84.63 36.5502 84.05 36.8202 83.63 37.3702C83.2 37.9202 82.99 38.6602 82.99 39.6102C82.99 40.5602 83.2 41.3002 83.63 41.8502C84.06 42.4002 84.64 42.6702 85.38 42.6702Z" fill="#124434"/>
+<path d="M92.4 43.2901C91.7 43.2901 91.14 43.0501 90.72 42.5801C90.3 42.1001 90.09 41.4501 90.09 40.6201V36.0901H90.73V40.4101C90.73 41.1701 90.89 41.7501 91.2 42.1301C91.51 42.5101 91.97 42.7001 92.58 42.7001C93.24 42.7001 93.76 42.4801 94.14 42.0501C94.52 41.6201 94.72 41.0401 94.72 40.3001V36.0901H95.36V43.1301H94.78L94.75 41.2701L94.86 41.3001C94.76 41.9301 94.5 42.4201 94.07 42.7701C93.64 43.1201 93.09 43.3001 92.42 43.3001L92.4 43.2901Z" fill="#124434"/>
+<path d="M97.59 43.1301V36.0901H98.14L98.21 38.1501L98.06 38.0701C98.19 37.4101 98.41 36.9101 98.72 36.5801C99.03 36.2501 99.46 36.0901 100.02 36.0901H100.57V36.7301H99.96C99.62 36.7301 99.31 36.8201 99.06 37.0001C98.8 37.1801 98.6 37.4301 98.45 37.7401C98.3 38.0601 98.23 38.4101 98.23 38.8101V43.1301H97.59Z" fill="#124434"/>
+<path d="M105.68 43.1302V33.6902H106.32V37.8902H106.24C106.29 37.4402 106.43 37.0802 106.66 36.7902C106.89 36.5002 107.17 36.2802 107.52 36.1402C107.86 36.0002 108.24 35.9302 108.65 35.9302C109.17 35.9302 109.61 36.0502 109.95 36.2802C110.3 36.5102 110.55 36.8302 110.72 37.2302C110.89 37.6302 110.97 38.0902 110.97 38.5902V43.1202H110.33V38.9102C110.33 38.1702 110.19 37.5902 109.9 37.1602C109.62 36.7302 109.15 36.5202 108.49 36.5202C107.83 36.5202 107.28 36.7402 106.89 37.1702C106.5 37.6002 106.3 38.1802 106.3 38.9102V43.1202H105.66L105.68 43.1302Z" fill="#124434"/>
+<path d="M115.69 43.2902C115.03 43.2902 114.46 43.1302 114 42.8102C113.53 42.4902 113.18 42.0502 112.94 41.4902C112.7 40.9302 112.58 40.3002 112.58 39.6102C112.58 38.9202 112.7 38.2902 112.93 37.7402C113.16 37.1902 113.51 36.7502 113.97 36.4202C114.43 36.0902 114.98 35.9302 115.64 35.9302C116.3 35.9302 116.85 36.0902 117.29 36.4102C117.74 36.7302 118.08 37.1602 118.31 37.7102C118.54 38.2602 118.66 38.8702 118.66 39.5602V39.7702H113.25C113.28 40.6802 113.51 41.3902 113.95 41.9002C114.39 42.4102 114.97 42.6602 115.69 42.6602C116.27 42.6602 116.74 42.5202 117.1 42.2402C117.46 41.9602 117.71 41.5902 117.84 41.1402L118.53 41.1902C118.35 41.7902 118.02 42.2902 117.52 42.6802C117.02 43.0802 116.41 43.2702 115.69 43.2702V43.2902ZM113.26 39.2002H117.97C117.93 38.3702 117.71 37.7202 117.31 37.2502C116.91 36.7902 116.35 36.5502 115.64 36.5502C114.93 36.5502 114.42 36.7802 113.99 37.2502C113.56 37.7202 113.32 38.3602 113.26 39.2002Z" fill="#124434"/>
+<path d="M122.32 43.2902C121.63 43.2902 121.07 43.1202 120.65 42.7802C120.23 42.4402 120.02 41.9802 120.02 41.3902C120.02 40.8402 120.21 40.4002 120.6 40.0702C120.99 39.7402 121.52 39.5102 122.19 39.3902L124.91 38.8802C124.91 38.0702 124.75 37.4802 124.42 37.1102C124.09 36.7402 123.59 36.5602 122.93 36.5602C122.34 36.5602 121.86 36.7002 121.51 36.9902C121.16 37.2802 120.93 37.6902 120.83 38.2302L120.14 38.1802C120.26 37.4802 120.57 36.9302 121.05 36.5302C121.53 36.1302 122.16 35.9302 122.93 35.9302C123.77 35.9302 124.42 36.1702 124.87 36.6602C125.32 37.1402 125.55 37.8602 125.55 38.8102V41.7902C125.55 42.0902 125.6 42.2902 125.69 42.4002C125.78 42.5002 125.92 42.5502 126.11 42.5502H126.26V43.1502C126.26 43.1502 126.18 43.1602 126.14 43.1602H125.99C125.75 43.1602 125.55 43.1102 125.39 43.0302C125.23 42.9402 125.1 42.7802 125.02 42.5502C124.94 42.3202 124.89 42.0002 124.89 41.5802H125C124.9 41.8902 124.73 42.1802 124.47 42.4502C124.21 42.7202 123.91 42.9302 123.54 43.0802C123.17 43.2302 122.77 43.3102 122.32 43.3102V43.2902ZM122.38 42.6902C122.88 42.6902 123.31 42.5902 123.7 42.3802C124.09 42.1702 124.38 41.9002 124.6 41.5402C124.82 41.1802 124.93 40.7902 124.93 40.3402V39.4402L122.35 39.9302C121.82 40.0302 121.41 40.1902 121.13 40.4102C120.85 40.6402 120.71 40.9402 120.71 41.3202C120.71 41.7502 120.86 42.0902 121.15 42.3202C121.44 42.5502 121.85 42.6702 122.39 42.6702L122.38 42.6902Z" fill="#124434"/>
+<path d="M128.84 43.1302C128.47 43.1302 128.18 43.0302 127.96 42.8402C127.75 42.6502 127.64 42.3602 127.64 41.9702V33.6902H128.28V41.9502C128.28 42.1402 128.34 42.3002 128.45 42.4002C128.56 42.5002 128.72 42.5602 128.94 42.5602H129.42V43.1302H128.85H128.84Z" fill="#124434"/>
+<path d="M129.78 36.6602V36.0902H133.36V36.6602H129.78ZM132.48 43.1302C131.97 43.1302 131.58 43.0102 131.33 42.7602C131.08 42.5102 130.95 42.1402 130.95 41.6402V34.4302H131.59V41.6102C131.59 41.9502 131.67 42.2002 131.83 42.3402C131.99 42.4802 132.22 42.5502 132.53 42.5502H133.36V43.1202H132.48V43.1302Z" fill="#124434"/>
+<path d="M134.78 43.1302V33.6902H135.42V37.8902H135.34C135.39 37.4402 135.53 37.0802 135.76 36.7902C135.99 36.5002 136.27 36.2802 136.62 36.1402C136.96 36.0002 137.34 35.9302 137.75 35.9302C138.27 35.9302 138.71 36.0502 139.05 36.2802C139.4 36.5102 139.65 36.8302 139.82 37.2302C139.99 37.6302 140.07 38.0902 140.07 38.5902V43.1202H139.43V38.9102C139.43 38.1702 139.29 37.5902 139 37.1602C138.72 36.7302 138.25 36.5202 137.59 36.5202C136.93 36.5202 136.38 36.7402 135.99 37.1702C135.6 37.6002 135.4 38.1802 135.4 38.9102V43.1202H134.76L134.78 43.1302Z" fill="#124434"/>
+<path d="M15.12 17.2C16.2 17.2 17.12 16.55 17.51 15.61C17.64 15.3 17.72 14.96 17.72 14.6C17.72 13.17 16.56 12.01 15.13 12.01C14.05 12.01 13.13 12.66 12.74 13.6C12.61 13.91 12.53 14.25 12.53 14.62C12.53 16.05 13.69 17.21 15.12 17.21V17.2Z" fill="#124434"/>
+<path d="M4.19 11.4399C4.19 11.4399 4.1 11.4399 4.05 11.4399C2.3 11.4399 0.880005 12.8599 0.880005 14.6099C0.880005 16.3599 2.3 17.7799 4.05 17.7799C4.1 17.7799 4.19 17.7799 4.19 17.7799L5.48 17.7599C7.19 17.7099 8.57 16.3299 8.57 14.6099C8.57 12.8899 7.19 11.4999 5.48 11.4599H4.19V11.4399Z" fill="#124434"/>
+<path d="M25 11.4399C25 11.4399 24.91 11.4399 24.86 11.4399C23.11 11.4399 21.69 12.8599 21.69 14.6099C21.69 16.3599 23.11 17.7799 24.86 17.7799C24.91 17.7799 25 17.7799 25 17.7799L26.29 17.7599C28 17.7099 29.38 16.3299 29.38 14.6099C29.38 12.8899 28 11.4999 26.29 11.4599H25V11.4399Z" fill="#124434"/>
+<path d="M26.21 22.1501C25.43 22.1501 24.77 22.5401 24.3 23.0901V23.0601L23.45 23.9101C23.09 24.3601 22.84 24.9001 22.84 25.5201C22.84 26.9501 24 28.1101 25.43 28.1101C26.16 28.1101 26.82 27.8001 27.29 27.3101L28.1 26.4901C28.53 26.0301 28.8 25.4201 28.8 24.7401C28.8 23.3101 27.64 22.1501 26.21 22.1501Z" fill="#124434"/>
+<path d="M4.04001 7.11015C4.82001 7.11015 5.48001 6.72015 5.95001 6.17015V6.20015L6.80001 5.35015C7.16001 4.90015 7.41001 4.36015 7.41001 3.74015C7.41001 2.31015 6.25001 1.15015 4.82001 1.15015C4.09001 1.15015 3.43001 1.46015 2.96001 1.95015L2.15001 2.77015C1.72001 3.23015 1.45001 3.84015 1.45001 4.52015C1.45001 5.95015 2.61001 7.11015 4.04001 7.11015Z" fill="#124434"/>
+<path d="M26.21 7.11015C25.43 7.11015 24.77 6.72015 24.3 6.17015V6.20015L23.45 5.35015C23.09 4.90015 22.84 4.36015 22.84 3.74015C22.84 2.31015 24 1.15015 25.43 1.15015C26.16 1.15015 26.82 1.46015 27.29 1.95015L28.1 2.77015C28.53 3.23015 28.8 3.84015 28.8 4.52015C28.8 5.95015 27.64 7.11015 26.21 7.11015Z" fill="#124434"/>
+<path d="M18.29 3.59003C18.29 3.59003 18.29 3.50003 18.29 3.45003C18.29 1.70003 16.87 0.280029 15.12 0.280029C13.37 0.280029 11.95 1.70003 11.95 3.45003C11.95 3.50003 11.95 3.59003 11.95 3.59003L11.97 4.88003C12.02 6.59003 13.4 7.97003 15.12 7.97003C16.84 7.97003 18.23 6.59003 18.27 4.88003V3.59003H18.29Z" fill="#124434"/>
+<path d="M4.04001 22.1501C4.82001 22.1501 5.48001 22.5401 5.95001 23.0901V23.0601L6.80001 23.9101C7.16001 24.3601 7.41001 24.9001 7.41001 25.5201C7.41001 26.9501 6.25001 28.1101 4.82001 28.1101C4.09001 28.1101 3.43001 27.8001 2.96001 27.3101L2.15001 26.4901C1.72001 26.0301 1.45001 25.4201 1.45001 24.7401C1.45001 23.3101 2.61001 22.1501 4.04001 22.1501Z" fill="#124434"/>
+<path d="M18.29 24.59C18.29 24.59 18.29 24.5 18.29 24.45C18.29 22.7 16.87 21.28 15.12 21.28C13.37 21.28 11.95 22.7 11.95 24.45C11.95 24.5 11.95 24.59 11.95 24.59L11.97 25.88C12.02 27.59 13.4 28.97 15.12 28.97C16.84 28.97 18.23 27.59 18.27 25.88V24.59H18.29Z" fill="#124434"/>
+</symbol></svg>
+
+
+<div class="app">
+
+  <!-- ==================== REVIEW SIDEBAR ==================== -->
+  <aside class="dev-nav">
+    <h1>SAGE · v3</h1>
+    <div class="sub">Visual pass — click to jump</div>
+
+    <div class="group">Main app</div>
+    <a data-goto="home"><span class="num">01</span>Home</a>
+    <a data-goto="home-empty"><span class="num">02</span>Home (first use)</a>
+    <a data-goto="records"><span class="num">03</span>Records</a>
+    <a data-goto="records-mental"><span class="num">04</span>Records — Mental</a>
+    <a data-goto="chat"><span class="num">05</span>Chat</a>
+    <a data-goto="chat-empty"><span class="num">06</span>Chat (empty)</a>
+    <a data-goto="insights"><span class="num">07</span>Insights</a>
+    <a data-goto="shared"><span class="num">08</span>Shared</a>
+    <a data-goto="profile"><span class="num">09</span>Profile</a>
+
+    <div class="group">Add flow</div>
+    <a data-goto="add-source"><span class="num">10</span>Choose source</a>
+    <a data-goto="add-upload"><span class="num">11</span>File selected</a>
+    <a data-goto="processing"><span class="num">12</span>Processing</a>
+    <a data-goto="confirm"><span class="num">13</span>Confirm + context</a>
+    <a data-goto="detail"><span class="num">14</span>Record detail</a>
+
+    <div class="group">Explore</div>
+    <a data-goto="search"><span class="num">15</span>Search</a>
+    <a data-goto="language"><span class="num">16</span>Language / plain</a>
+
+    <div class="group">Sharing (in-context drawer)</div>
+    <a data-open-drawer="record"><span class="num">17</span>Share drawer — record</a>
+    <a data-open-drawer="template"><span class="num">18</span>Drawer — templates</a>
+
+    <div class="note">Demo mode — no login. Enters directly at Home as Vikram. Sharing is a drawer that opens from records, timeline rows, or chat — not a destination.</div>
+  </aside>
+
+
+  <!-- ==================== STAGE ==================== -->
+  <main class="stage">
+    <div class="frame">
+
+
+      <!-- ============================================================ -->
+      <!-- 01 · HOME (default, populated)                                -->
+      <!-- ============================================================ -->
+      <section class="screen active" data-screen="home">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink active" data-goto="home">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who">
+                <div class="name">Vikram</div>
+                <div class="plan">Free plan</div>
+              </div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Home</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody">
+              <div class="home-header">
+                <div>
+                  <h1 class="h-hero">Hi, <span class="italic">Vikram.</span></h1>
+                  <p class="sub mt-8">47 records across 3 years.</p>
+                </div>
+                <button class="btn dark large" data-goto="add-source">Add record</button>
+              </div>
+
+              <div class="home-grid">
+                <!-- LEFT: Today + Recent -->
+                <div>
+                  <div class="section-head">
+                    <div class="eyebrow" style="margin:0;">Today</div>
+                  </div>
+                  <div class="today-list">
+                    <div class="today-item">
+                      <div class="when">09:00</div>
+                      <div class="body">
+                        <div class="title">Metformin 500 mg</div>
+                        <div class="meta">Daily · with breakfast</div>
+                      </div>
+                      <button class="btn small light" data-toast="Marked as taken">Mark taken</button>
+                    </div>
+                    <div class="today-item">
+                      <div class="when">Wed 14</div>
+                      <div class="body">
+                        <div class="title">Follow-up with Dr. Kapoor</div>
+                        <div class="meta">4:30 PM · Kokilaben Hospital</div>
+                      </div>
+                      <button class="btn small ghost">Prepare</button>
+                    </div>
+                    <div class="today-item">
+                      <div class="when">Note</div>
+                      <div class="body">
+                        <div class="title" style="font-weight:400;color:var(--ink-2);">Vitamin D was low last month. Follow-up test suggested for October.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-48"></div>
+                  <div class="section-head">
+                    <div class="eyebrow" style="margin:0;">Recent activity</div>
+                    <div class="more" data-goto="records">See all →</div>
+                  </div>
+                  <div class="recent-list">
+                    <div class="recent-row" data-goto="detail">
+                      <div class="date">12 Aug</div>
+                      <div class="type">Lab</div>
+                      <div class="desc">Complete blood count<span class="tab" style="color:var(--ink-4);font-weight:400;font-size:12px;margin-left:8px;">3 flagged</span></div>
+                      <div class="src">Metropolis Labs</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">05 Aug</div>
+                      <div class="type">Rx</div>
+                      <div class="desc">Metformin, Vitamin D3</div>
+                      <div class="src">Dr. Kapoor</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">28 Jul</div>
+                      <div class="type">Therapy</div>
+                      <div class="desc">Session with Dr. Rao</div>
+                      <div class="src">Self-added</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">22 Jul</div>
+                      <div class="type">Event</div>
+                      <div class="desc">Diagnosis — Vitamin D deficiency</div>
+                      <div class="src">Dr. Kapoor</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">20 Jul</div>
+                      <div class="type">Visit</div>
+                      <div class="desc">Annual check-up</div>
+                      <div class="src">Kokilaben Hospital</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT: Ask + shortcuts -->
+                <div>
+                  <div class="ask-card">
+                    <div class="ask-title">Ask about your records</div>
+                    <p class="sub small mt-8" style="margin-top:4px;font-size:12.5px;">Answers pulled only from what you've added.</p>
+                    <div class="ask-input" data-goto="chat">When did I last have a blood test?</div>
+                    <div class="ask-suggestions">
+                      <span class="ask-link" data-goto="chat">→ Explain my last lab report</span>
+                      <span class="ask-link" data-goto="chat">→ What are my current medications?</span>
+                      <span class="ask-link" data-goto="chat">→ Prep for Wednesday's visit</span>
+                    </div>
+                  </div>
+
+                  <div class="mt-32"></div>
+                  <div class="section-head">
+                    <div class="eyebrow" style="margin:0;">Shortcuts</div>
+                  </div>
+                  <div>
+                    <div class="shortcut-btn primary" data-open-drawer="template">Share a summary <span class="arrow">→</span></div>
+                    <div class="shortcut-btn" data-goto="shared">Manage active shares <span class="arrow">→</span></div>
+                    <div class="shortcut-btn">Emergency card <span class="arrow">→</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 02 · HOME EMPTY (first use)                                   -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="home-empty">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink active" data-goto="home-empty">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Home</span></div>
+              <div class="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody pbody-wide">
+              <h1 class="h-hero">Hello, <span class="italic">Vikram.</span></h1>
+              <p class="sub mt-8">Let's get your health records in one place.</p>
+
+              <div class="mt-40"></div>
+
+              <div class="empty-hero-grid">
+                <div class="empty-drop">
+                  <h2>No records yet</h2>
+                  <p>Add your first record and SAGE will start building your history. One at a time or in batches — reports, prescriptions, scans.</p>
+                  <div>
+                    <button class="btn dark large" data-goto="add-source">Add your first record</button>
+                  </div>
+                </div>
+                <div class="hero-image square"></div>
+              </div>
+
+              <div class="empty-secondary">
+                <div class="empty-item">
+                  <div class="eyebrow">While we're empty</div>
+                  <div class="name">Set up your emergency card</div>
+                  <p>Blood type, allergies, current medications. Accessible from your lock screen if you need it.</p>
+                  <button class="btn small light">Set up</button>
+                </div>
+                <div class="empty-item">
+                  <div class="eyebrow">Optional</div>
+                  <div class="name">Add your care team</div>
+                  <p>Your GP, therapist, specialists. Makes sharing records instant later.</p>
+                  <button class="btn small light" data-goto="profile">Add doctors</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 03 · RECORDS / TIMELINE                                       -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="records">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink active" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Records</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody">
+              <div class="home-header">
+                <div>
+                  <h1 class="h-hero">Your health, <span class="italic">over time</span></h1>
+                  <p class="sub mt-8">47 records · 2023 – 2026</p>
+                </div>
+                <div class="hstack">
+                  <button class="btn light">Export all</button>
+                  <button class="btn dark" data-goto="add-source">Add record</button>
+                </div>
+              </div>
+
+              <div class="filter-bar">
+                <span class="chip on">All <span class="count">47</span></span>
+                <span class="chip">Medical <span class="count">22</span></span>
+                <span class="chip" data-goto="records-mental">Mental <span class="count">8</span></span>
+                <span class="chip">Lifestyle <span class="count">14</span></span>
+                <span class="chip">Family <span class="count">3</span></span>
+                <span class="sep"></span>
+                <span class="chip">Last 3 months</span>
+                <span class="chip">Sort: newest</span>
+              </div>
+
+              <div class="timeline">
+                <div class="timeline-month">August 2026</div>
+                <div class="tl-entry" data-goto="detail">
+                  <div class="day">Aug 12</div>
+                  <div class="cat">Lab</div>
+                  <div class="main">
+                    <div class="title">Complete blood count (CBC)<span class="dot-flag"></span></div>
+                    <div class="meta">Metropolis Labs · 3 values flagged</div>
+                  </div>
+                  <div class="aside">PDF · 2 pages</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Aug 05</div>
+                  <div class="cat">Rx</div>
+                  <div class="main">
+                    <div class="title">Metformin, Vitamin D3</div>
+                    <div class="meta">Dr. Ananya Kapoor · 90-day supply</div>
+                  </div>
+                  <div class="aside">Photo</div>
+                </div>
+
+                <div class="timeline-month">July 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jul 28</div>
+                  <div class="cat">Mental</div>
+                  <div class="main">
+                    <div class="title">Therapy session</div>
+                    <div class="meta">Dr. Sameer Rao · 50 min</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 22</div>
+                  <div class="cat">Event</div>
+                  <div class="main">
+                    <div class="title">Diagnosis — Vitamin D deficiency</div>
+                    <div class="meta">Follow-up from annual check-up</div>
+                  </div>
+                  <div class="aside">Linked · 2</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 20</div>
+                  <div class="cat">Visit</div>
+                  <div class="main">
+                    <div class="title">Annual check-up</div>
+                    <div class="meta">Kokilaben Hospital · Dr. Kapoor</div>
+                  </div>
+                  <div class="aside">Linked · 4</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 20</div>
+                  <div class="cat">Lab</div>
+                  <div class="main">
+                    <div class="title">Vitamin D, Thyroid panel, Lipid profile</div>
+                    <div class="meta">Ordered by Dr. Kapoor · Kokilaben Lab</div>
+                  </div>
+                  <div class="aside">PDF · 5 pages</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 14</div>
+                  <div class="cat">Lifestyle</div>
+                  <div class="main">
+                    <div class="title">Sleep pattern shifted</div>
+                    <div class="meta">Average dropped from 7.2 h → 5.8 h · Fitbit</div>
+                  </div>
+                  <div class="aside">Auto-noted</div>
+                </div>
+
+                <div class="timeline-month">June 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jun 18</div>
+                  <div class="cat">Mental</div>
+                  <div class="main">
+                    <div class="title">GAD-7 assessment</div>
+                    <div class="meta">Score 9 · mild anxiety</div>
+                  </div>
+                  <div class="aside">Self-added</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jun 04</div>
+                  <div class="cat">Imaging</div>
+                  <div class="main">
+                    <div class="title">Chest X-ray</div>
+                    <div class="meta">Routine · no abnormalities</div>
+                  </div>
+                  <div class="aside">DICOM + PDF</div>
+                </div>
+
+                <div class="timeline-month">May 2026</div>
+                <div class="tl-entry">
+                  <div class="day">May 22</div>
+                  <div class="cat">Visit</div>
+                  <div class="main">
+                    <div class="title">Dental cleaning</div>
+                    <div class="meta">Dr. Mehta</div>
+                  </div>
+                  <div class="aside">Receipt</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 04 · CATEGORY VIEW (Mental)                                   -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="records-mental">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink active" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb">
+                <a data-goto="records">Records</a>
+                <span class="sep">/</span>
+                <span class="this">Mental</span>
+              </div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody">
+              <div class="home-header">
+                <div>
+                  <h1 class="h-hero">Mental health</h1>
+                  <p class="sub mt-8">Mood, therapy, journal, assessments — 8 entries in the last 3 months.</p>
+                </div>
+              </div>
+
+              <div class="filter-bar">
+                <span class="chip" data-goto="records">All <span class="count">47</span></span>
+                <span class="chip">Medical <span class="count">22</span></span>
+                <span class="chip on">Mental <span class="count">8</span></span>
+                <span class="chip">Lifestyle <span class="count">14</span></span>
+                <span class="chip">Family <span class="count">3</span></span>
+                <span class="sep"></span>
+                <span class="chip">Last 3 months</span>
+              </div>
+
+              <div class="trend-card">
+                <div class="trend-head">
+                  <div class="trend-title">Mood — last 30 days</div>
+                  <div class="trend-meta">Trending upward · 6 entries logged</div>
+                </div>
+                <div class="mood-graph">
+                  <div class="col" style="height:40%;"></div><div class="col" style="height:55%;"></div>
+                  <div class="col" style="height:60%;"></div><div class="col" style="height:35%;"></div>
+                  <div class="col" style="height:45%;"></div><div class="col" style="height:50%;"></div>
+                  <div class="col" style="height:70%;"></div><div class="col" style="height:65%;"></div>
+                  <div class="col" style="height:75%;"></div><div class="col" style="height:60%;"></div>
+                  <div class="col" style="height:50%;"></div><div class="col" style="height:80%;"></div>
+                  <div class="col" style="height:70%;"></div><div class="col peak" style="height:85%;"></div>
+                  <div class="col" style="height:80%;"></div><div class="col" style="height:75%;"></div>
+                  <div class="col" style="height:70%;"></div><div class="col" style="height:60%;"></div>
+                  <div class="col" style="height:65%;"></div><div class="col peak" style="height:80%;"></div>
+                </div>
+              </div>
+
+              <div class="timeline">
+                <div class="timeline-month">August 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Aug 09</div>
+                  <div class="cat">Journal</div>
+                  <div class="main">
+                    <div class="title">"Feeling steadier this week…"</div>
+                    <div class="meta">3-min entry · self</div>
+                  </div>
+                  <div class="aside">Self</div>
+                </div>
+
+                <div class="timeline-month">July 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jul 28</div>
+                  <div class="cat">Therapy</div>
+                  <div class="main">
+                    <div class="title">Therapy session</div>
+                    <div class="meta">Dr. Sameer Rao · discussed sleep + work stress</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 14</div>
+                  <div class="cat">Therapy</div>
+                  <div class="main">
+                    <div class="title">Therapy session</div>
+                    <div class="meta">Dr. Sameer Rao</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+
+                <div class="timeline-month">June 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jun 18</div>
+                  <div class="cat">Assess</div>
+                  <div class="main">
+                    <div class="title">GAD-7 anxiety assessment</div>
+                    <div class="meta">Score 9 · mild anxiety</div>
+                  </div>
+                  <div class="aside">Self</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jun 02</div>
+                  <div class="cat">Therapy</div>
+                  <div class="main">
+                    <div class="title">Therapy — first appointment</div>
+                    <div class="meta">Dr. Sameer Rao · intake</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 05 · CHAT (with voice + listen)                               -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="chat">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink active" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Chat</span></div>
+              <div class="spacer"></div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="chat-header-note">Answers pulled from your records. This is not medical advice.</div>
+            <div class="chat-body">
+              <div class="chat-messages">
+
+                <!-- AI greeting -->
+                <div class="chat-turn ai">
+                  <div class="chat-msg">
+                    <div class="bubble ai">Hi Vikram. Ask me anything about your records — I'll always show you where the answer comes from.</div>
+                    <button class="listen-btn" aria-label="Play this message">
+                      <span class="play"><svg viewBox="0 0 12 12" width="9" height="9" fill="currentColor" aria-hidden="true"><path d="M3 2l7 4-7 4z"/></svg></span>
+                      <span class="label">Listen</span>
+                      <span class="lang-pick"><span>English</span><span class="caret">▾</span></span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- User typed -->
+                <div class="chat-turn user">
+                  <div class="chat-msg">
+                    <div class="bubble user">When did I last have a blood test?</div>
+                  </div>
+                </div>
+
+                <!-- AI reply — playing state -->
+                <div class="chat-turn ai">
+                  <div class="chat-msg">
+                    <div class="bubble ai">
+                      <div><span class="ref">CBC · 12 Aug 2026</span><span class="ref">Vitamin D panel · 20 Jul 2026</span></div>
+                      Your most recent one was a Complete Blood Count at Metropolis Labs on <strong>12 August 2026</strong> — about a month ago. Before that, a Vitamin D and Thyroid panel on 20 July, ordered by Dr. Kapoor.
+                    </div>
+                    <button class="listen-btn playing" aria-label="Playing">
+                      <span class="play"><svg viewBox="0 0 12 12" width="9" height="9" fill="currentColor" aria-hidden="true"><rect x="3" y="2" width="2.5" height="8"/><rect x="6.5" y="2" width="2.5" height="8"/></svg></span>
+                      <span class="label">Playing…</span>
+                      <span class="lang-pick"><span>English</span><span class="caret">▾</span></span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- User voice -->
+                <div class="chat-turn user">
+                  <div class="chat-msg">
+                    <div class="voice-bubble">
+                      <span class="mic-in" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                          <rect x="6" y="2" width="4" height="8" rx="2" fill="currentColor" stroke="none"/>
+                          <path d="M4 8a4 4 0 0 0 8 0M8 12v2"/>
+                        </svg>
+                      </span>
+                      <div class="waveform" aria-hidden="true">
+                        <span style="height:5px;"></span><span style="height:11px;"></span><span style="height:20px;"></span><span style="height:8px;"></span><span style="height:16px;"></span><span style="height:22px;"></span><span style="height:6px;"></span><span style="height:18px;"></span><span style="height:12px;"></span><span style="height:21px;"></span><span style="height:7px;"></span><span style="height:14px;"></span><span style="height:10px;"></span><span style="height:19px;"></span><span style="height:5px;"></span><span style="height:13px;"></span>
+                      </div>
+                      <span class="dur">0:08</span>
+                    </div>
+                    <div class="voice-transcript">"Anything worth telling my doctor at Wednesday's follow-up?"</div>
+                  </div>
+                </div>
+
+                <!-- AI reply with menu OPEN -->
+                <div class="chat-turn ai">
+                  <div class="chat-msg">
+                    <div class="bubble ai">
+                      A few things worth mentioning:
+                      <ul>
+                        <li>Vitamin D was 18 ng/mL on Aug 12 — still below the healthy range even after supplementation</li>
+                        <li>Sleep dropped from 7.2 h → 5.8 h average since mid-July</li>
+                        <li>Two therapy sessions since your last GP visit</li>
+                      </ul>
+                      Want me to prepare a one-page summary you can bring?
+                      <div class="mt-16"><button class="btn small dark" data-open-drawer="template">Prepare summary</button></div>
+                    </div>
+                    <div class="listen-menu-wrap">
+                      <button class="listen-btn" aria-label="Play this message">
+                        <span class="play"><svg viewBox="0 0 12 12" width="9" height="9" fill="currentColor" aria-hidden="true"><path d="M3 2l7 4-7 4z"/></svg></span>
+                        <span class="label">Listen</span>
+                        <span class="lang-pick"><span>English</span><span class="caret">▾</span></span>
+                      </button>
+                      <div class="listen-menu">
+                        <div class="head">Hear it in</div>
+                        <div class="opt on"><span>English</span><span class="check">✓</span></div>
+                        <div class="opt"><span>हिन्दी (Hindi)</span></div>
+                        <div class="opt"><span>मराठी (Marathi)</span></div>
+                        <div class="opt"><span>தமிழ் (Tamil)</span></div>
+                        <div class="opt dim"><span>+ Add language</span></div>
+                        <div class="foot">Voice is spoken by SAGE. Not the doctor.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="chat-composer">
+                <button class="mic-btn" aria-label="Speak your question" title="Tap to speak">
+                  <svg viewBox="0 0 16 16" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                    <rect x="6" y="2" width="4" height="8" rx="2" fill="currentColor" stroke="none"/>
+                    <path d="M4 8a4 4 0 0 0 8 0M8 12v2"/>
+                  </svg>
+                </button>
+                <div class="input">Type a question, or tap the mic to speak…</div>
+                <button class="send" aria-label="Send">
+                  <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+                    <path d="M2 8l12-5-4 12-2-5z"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="composer-hint">Voice input transcribes to text · every reply can be played back in your chosen language</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 06 · CHAT EMPTY STATE                                         -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="chat-empty">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink active" data-goto="chat-empty">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Chat</span></div>
+              <div class="spacer"></div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="chat-header-note">Answers pulled from your records. This is not medical advice.</div>
+            <div class="chat-body">
+              <div class="chat-empty">
+                <div class="chat-empty-hero">
+                  <div>
+                    <div class="h">Ask about your <span class="italic">own</span> health.</div>
+                    <p class="s">SAGE pulls answers only from records you've added — labs, prescriptions, visits, notes. Nothing else. Type or speak, in any language.</p>
+                    <button class="btn dark" data-goto="chat">Start with an example</button>
+                  </div>
+                  <div class="hero-image square"></div>
+                </div>
+
+                <div class="mt-16"></div>
+                <div class="eyebrow">Try asking</div>
+                <div class="try-list mt-16">
+                  <div class="try-item" data-goto="chat">
+                    When did I last have a blood test?
+                    <span class="go">→</span>
+                  </div>
+                  <div class="try-item" data-goto="chat">
+                    What are my current medications?
+                    <span class="go">→</span>
+                  </div>
+                  <div class="try-item" data-goto="chat">
+                    Anything worth telling my doctor at my next visit?
+                    <span class="go">→</span>
+                  </div>
+                  <div class="try-item" data-goto="chat">
+                    Read my last lab result in Hindi
+                    <span class="go">→</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chat-composer">
+                <button class="mic-btn" aria-label="Speak">
+                  <svg viewBox="0 0 16 16" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                    <rect x="6" y="2" width="4" height="8" rx="2" fill="currentColor" stroke="none"/>
+                    <path d="M4 8a4 4 0 0 0 8 0M8 12v2"/>
+                  </svg>
+                </button>
+                <div class="input">Ask your first question…</div>
+                <button class="send" aria-label="Send">
+                  <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+                    <path d="M2 8l12-5-4 12-2-5z"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="composer-hint">Voice input transcribes to text · every reply can be played back in your chosen language</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 07 · INSIGHTS                                                 -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="insights">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink active" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Insights</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody pbody-narrow">
+              <h1 class="h-hero">Worth <span class="italic">noticing</span></h1>
+              <p class="sub mt-8">Patterns from your own records. Not diagnoses.</p>
+
+              <div class="mt-40"></div>
+
+              <div class="insight-headline">
+                <div class="k">Since your last check-up (20 July)</div>
+                <div class="v">Your vitamin D is <span class="accent">rising</span>, but sleep has <span class="accent">dropped</span>.</div>
+              </div>
+
+              <div class="observation">
+                <div class="obs-h">
+                  <div class="metric">Vitamin D</div>
+                  <div class="delta">18 ng/mL · up from 12</div>
+                </div>
+                <p>Still below the healthy range of 30–100. Trending in the right direction since starting supplementation on 5 August. A follow-up test was suggested for October.</p>
+                <div class="mini-graph">
+                  <div class="col" style="height:22%;"></div>
+                  <div class="col" style="height:35%;"></div>
+                  <div class="col" style="height:48%;"></div>
+                  <div class="col" style="height:62%;"></div>
+                </div>
+                <div class="obs-actions">
+                  <button class="btn small light">Set October reminder</button>
+                  <button class="btn small ghost" data-goto="chat">Ask about this</button>
+                </div>
+              </div>
+
+              <div class="observation">
+                <div class="obs-h">
+                  <div class="metric">Sleep</div>
+                  <div class="delta">5.8 h avg · down from 7.2 h</div>
+                </div>
+                <p>Your sleep average dropped in mid-July and has stayed lower since. Data from your Fitbit — 58 nights measured.</p>
+                <div class="mini-graph">
+                  <div class="col" style="height:82%;"></div>
+                  <div class="col" style="height:78%;"></div>
+                  <div class="col" style="height:58%;"></div>
+                  <div class="col" style="height:52%;"></div>
+                </div>
+                <div class="obs-actions">
+                  <button class="btn small ghost" data-goto="chat">Ask about this</button>
+                  <button class="btn small ghost">Dismiss</button>
+                </div>
+              </div>
+
+              <p class="small muted mt-32">More insights show up as you add records. You can turn these off in Profile → Preferences.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 08 · PROFILE                                                  -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="profile">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink active" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Profile</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody pbody-narrow">
+              <h1 class="h-hero">Vikram Menon</h1>
+              <p class="sub mt-8">34 · Mumbai · Managing your own records</p>
+
+              <div class="mt-48"></div>
+
+              <div class="profile-section">
+                <div class="eyebrow">Basics</div>
+                <div class="profile-row"><div class="k">Date of birth</div><div class="v">14 March 1991</div><div class="edit">Edit</div></div>
+                <div class="profile-row"><div class="k">Blood type</div><div class="v">O+</div><div class="edit">Edit</div></div>
+                <div class="profile-row"><div class="k">Allergies</div><div class="v">Penicillin (severe)</div><div class="edit">Edit</div></div>
+                <div class="profile-row"><div class="k">Emergency contact</div><div class="v">Anjali Menon · +91 98••• •••23</div><div class="edit">Edit</div></div>
+                <div class="profile-row"><div class="k">Preferred language</div><div class="v">English + Hindi</div><div class="edit">Change</div></div>
+              </div>
+
+              <div class="profile-section">
+                <div class="eyebrow">Care team</div>
+                <div class="care-list">
+                  <div class="care-item">
+                    <div class="care-avatar">AK</div>
+                    <div class="care-info">
+                      <div class="care-name">Dr. Ananya Kapoor</div>
+                      <div class="care-role">General physician · Kokilaben Hospital · 12 records shared</div>
+                    </div>
+                    <button class="btn small light">Manage</button>
+                  </div>
+                  <div class="care-item">
+                    <div class="care-avatar">SR</div>
+                    <div class="care-info">
+                      <div class="care-name">Dr. Sameer Rao</div>
+                      <div class="care-role">Therapist · private practice · 5 records shared</div>
+                    </div>
+                    <button class="btn small light">Manage</button>
+                  </div>
+                  <div class="care-item">
+                    <div class="care-avatar">PM</div>
+                    <div class="care-info">
+                      <div class="care-name">Dr. Priya Mehta</div>
+                      <div class="care-role">Dentist · 1 record shared</div>
+                    </div>
+                    <button class="btn small light">Manage</button>
+                  </div>
+                </div>
+                <button class="btn light mt-24">Add someone</button>
+              </div>
+
+              <div class="profile-section">
+                <div class="eyebrow">Privacy &amp; sharing</div>
+                <div class="profile-row"><div class="k">Active shared links</div><div class="v">3 links</div><div class="edit" data-goto="shared">Manage</div></div>
+                <div class="profile-row"><div class="k">Family view</div><div class="v">Off</div><div class="edit">Set up</div></div>
+                <div class="profile-row"><div class="k">Emergency card on lock screen</div><div class="v">On</div><div class="edit">Change</div></div>
+                <div class="profile-row"><div class="k">Data export</div><div class="v">Everything, anytime</div><div class="edit">Export</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 09 · ADD SOURCE                                               -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="add-source">
+        <div class="modal-wrap">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="title">Add a record</div>
+              <div class="close" data-goto="home">×</div>
+            </div>
+            <div class="modal-body">
+              <p class="sub small">Where's it coming from? We'll figure out what it is on the next step.</p>
+              <div class="source-grid">
+                <div class="source-opt" data-goto="add-upload">
+                  <div class="name">Upload a file</div>
+                  <div class="hint">PDF, JPG, PNG · up to 20 MB</div>
+                </div>
+                <div class="source-opt" data-goto="add-upload">
+                  <div class="name">Take a photo</div>
+                  <div class="hint">Snap a physical report or prescription</div>
+                </div>
+                <div class="source-opt">
+                  <div class="name">Type it out</div>
+                  <div class="hint">Symptoms, notes, a medication</div>
+                </div>
+              </div>
+
+              <p class="small muted mt-24">Adding for someone else? <a style="color:var(--forest);cursor:pointer;font-weight:500;">Switch profile</a></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 10 · ADD UPLOAD                                               -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="add-upload">
+        <div class="modal-wrap">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="title">Upload files</div>
+              <div class="close" data-goto="home">×</div>
+            </div>
+            <div class="modal-body">
+              <div class="dropzone">
+                <div class="title">Drop files here</div>
+                <div class="hint">or click to browse — PDF, JPG, PNG</div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="eyebrow">Selected · 2 files</div>
+              <div class="file-row">
+                <div class="thumb"></div>
+                <div class="name">CBC_Metropolis_Aug12.pdf</div>
+                <div class="size">1.2 MB</div>
+                <div class="remove">Remove</div>
+              </div>
+              <div class="file-row">
+                <div class="thumb"></div>
+                <div class="name">IMG_prescription_Aug05.jpg</div>
+                <div class="size">2.8 MB</div>
+                <div class="remove">Remove</div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="step">Step 1 of 3 — Upload</div>
+              <div class="actions">
+                <button class="btn light" data-goto="add-source">Back</button>
+                <button class="btn dark" data-goto="processing">Read these</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 11 · PROCESSING                                               -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="processing">
+        <div class="modal-wrap">
+          <div class="modal" style="width:720px;">
+            <div class="modal-head">
+              <div class="title">Reading your record</div>
+              <div class="close" data-goto="home">×</div>
+            </div>
+            <div class="modal-body">
+              <div class="processing-split">
+                <div>
+                  <div class="doc-preview">
+                    <span class="bar dark long"></span>
+                    <span class="bar med"></span>
+                    <span class="bar short"></span>
+                    <div style="height:6px;"></div>
+                    <span class="bar long"></span>
+                    <span class="bar long"></span>
+                    <span class="bar med"></span>
+                    <span class="bar long"></span>
+                    <span class="bar short"></span>
+                    <div style="height:6px;"></div>
+                    <span class="bar dark med"></span>
+                    <span class="bar long"></span>
+                    <span class="bar long"></span>
+                  </div>
+                  <div class="small muted mt-8" style="text-align:center;">CBC_Metropolis_Aug12.pdf</div>
+                </div>
+
+                <div>
+                  <div class="extract-status"><span class="pulse"></span>Understanding this document…</div>
+                  <div>
+                    <div class="extract-item"><div class="k">Looks like</div><div class="v">Blood test — CBC</div></div>
+                    <div class="extract-item"><div class="k">Source</div><div class="v">Metropolis Healthcare</div></div>
+                    <div class="extract-item"><div class="k">Date on document</div><div class="v">12 August 2026</div></div>
+                    <div class="extract-item"><div class="k">Ordered by</div><div class="v">Dr. A. Kapoor</div></div>
+                    <div class="extract-item"><div class="k">Values found</div><div class="v">14 markers · 3 flagged</div></div>
+                    <div class="extract-item pending"><div class="k">Suggested category</div><div class="v">Medical → Lab report</div></div>
+                  </div>
+                  <p class="small muted mt-16">You'll get to check and correct everything on the next screen.</p>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="step">Step 2 of 3 — Reading</div>
+              <button class="btn dark" data-goto="confirm">Continue</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 12 · CONFIRM + CONTEXT                                        -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="confirm">
+        <div class="modal-wrap">
+          <div class="modal" style="width:680px;">
+            <div class="modal-head">
+              <div class="title">Does this look right?</div>
+              <div class="close" data-goto="home">×</div>
+            </div>
+            <div class="modal-body" style="max-height:540px;overflow-y:auto;">
+              <div class="confirm-header">
+                <div class="eyebrow">Lab report</div>
+                <div class="title">Complete blood count (CBC)</div>
+                <div class="sub-line">Metropolis Healthcare · 12 August 2026 · Ordered by Dr. Kapoor</div>
+              </div>
+
+              <div class="eyebrow">What we found</div>
+              <div class="confirm-fields">
+                <div class="cf"><div class="k">Type</div><div class="v">Lab report — CBC</div><div class="edit">Change</div></div>
+                <div class="cf"><div class="k">Source</div><div class="v">Metropolis Healthcare</div><div class="edit">Edit</div></div>
+                <div class="cf"><div class="k">Date</div><div class="v">12 August 2026</div><div class="edit">Edit</div></div>
+                <div class="cf"><div class="k">Ordered by</div><div class="v">Dr. Ananya Kapoor</div><div class="edit">Edit</div></div>
+                <div class="cf"><div class="k">Whose record</div><div class="v">Vikram (me)</div><div class="edit">Change</div></div>
+              </div>
+
+              <div class="eyebrow">Optional context — helps future you</div>
+              <div class="context-q">
+                <div class="q">Was this part of a routine check-up, or was something wrong?</div>
+                <div class="opts">
+                  <span class="chip">Routine</span>
+                  <span class="chip on">Follow-up on a symptom</span>
+                  <span class="chip">Something else</span>
+                  <span class="chip">Skip</span>
+                </div>
+              </div>
+
+              <div class="context-q">
+                <div class="q">What were you experiencing at the time? <span class="muted">(optional)</span></div>
+                <div class="free">Fatigue, low energy — you can leave this blank</div>
+              </div>
+
+              <div class="context-q">
+                <div class="q">Anything you want to remember about this?</div>
+                <div class="opts">
+                  <span class="chip">Add note</span>
+                  <span class="chip">Attach a photo</span>
+                  <span class="chip">Link a related record</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="step">Step 3 of 3 — Confirm</div>
+              <div class="actions">
+                <button class="btn light" data-goto="processing">Back</button>
+                <button class="btn dark" data-goto="detail" data-toast="Saved to your records">Save record</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 13 · RECORD DETAIL                                            -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="detail">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink active" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb">
+                <a data-goto="records">Records</a>
+                <span class="sep">/</span>
+                <span class="this">CBC · 12 Aug 2026</span>
+              </div>
+              <div class="spacer"></div>
+              <button class="btn small light" data-goto="language">Read differently</button>
+              <button class="btn small dark" data-open-drawer="record">Share</button>
+            </div>
+            <div class="pbody">
+              <div class="detail-head">
+                <div class="eyebrow">Lab report</div>
+                <h1 class="h-page">Complete blood count (CBC)</h1>
+                <div class="meta">
+                  <span>12 August 2026</span>
+                  <span>Metropolis Healthcare</span>
+                  <span>Ordered by Dr. Kapoor</span>
+                  <span>Linked to annual check-up</span>
+                </div>
+              </div>
+
+              <div class="detail-toggle">
+                <div class="seg on">Plain English</div>
+                <div class="seg">Clinical view</div>
+                <div class="seg">Original document</div>
+              </div>
+
+              <div class="detail-grid">
+                <div class="value-list">
+                  <div class="val">
+                    <div>
+                      <div class="name">Hemoglobin</div>
+                      <div class="expl">Carries oxygen through your blood. Yours is a bit low — often linked to iron levels or recent tiredness.</div>
+                    </div>
+                    <div class="num">11.2<span class="unit">g/dL</span></div>
+                    <span class="chip status low">Low</span>
+                  </div>
+                  <div class="val">
+                    <div>
+                      <div class="name">White blood cells</div>
+                      <div class="expl">Your immune system's front line. In the normal range.</div>
+                    </div>
+                    <div class="num">7,200<span class="unit">/µL</span></div>
+                    <span class="chip status ok">OK</span>
+                  </div>
+                  <div class="val">
+                    <div>
+                      <div class="name">Platelets</div>
+                      <div class="expl">Help your blood clot. Normal.</div>
+                    </div>
+                    <div class="num">240,000<span class="unit">/µL</span></div>
+                    <span class="chip status ok">OK</span>
+                  </div>
+                  <div class="val">
+                    <div>
+                      <div class="name">Vitamin D</div>
+                      <div class="expl">Low. Below the healthy range (30–100). Common in India — usually addressed with supplements + sun.</div>
+                    </div>
+                    <div class="num">18<span class="unit">ng/mL</span></div>
+                    <span class="chip status low">Low</span>
+                  </div>
+                  <p class="small muted mt-16">+ 10 other markers · <a style="color:var(--forest);cursor:pointer;font-weight:500;">show all</a></p>
+
+                  <div class="mt-40"></div>
+                  <div class="eyebrow">Your note</div>
+                  <p style="color:var(--ink-2);font-size:14px;margin:0;font-family:'Familjen Grotesk',system-ui;font-style:italic;font-weight:500;">"Feeling tired, wanted to check iron"</p>
+                </div>
+
+                <div class="detail-side">
+                  <div class="side-block">
+                    <div class="eyebrow">Original</div>
+                    <div class="doc-preview">
+                      <span class="bar dark long"></span>
+                      <span class="bar med"></span>
+                      <span class="bar short"></span>
+                      <div style="height:4px;"></div>
+                      <span class="bar long"></span>
+                      <span class="bar long"></span>
+                      <span class="bar med"></span>
+                    </div>
+                    <button class="btn small light block mt-8">Open PDF</button>
+                  </div>
+
+                  <div class="side-block">
+                    <div class="eyebrow">Related</div>
+                    <div class="related-item">
+                      <div class="name">Annual check-up</div>
+                      <div class="meta">20 Jul 2026 · linked</div>
+                    </div>
+                    <div class="related-item">
+                      <div class="name">Vitamin D — previous</div>
+                      <div class="meta">20 Jul 2026 · comparable</div>
+                    </div>
+                    <div class="related-item">
+                      <div class="name">Prescription — Vit D3</div>
+                      <div class="meta">05 Aug 2026 · resulted in</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 14 · SEARCH                                                   -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="search">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink active" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Search</span></div>
+              <div class="spacer"></div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody pbody-narrow">
+              <input class="search-input" value="When did I last take antibiotics?" />
+              <div class="search-hint">Ask a question, or search by term, date, or doctor.</div>
+
+              <div class="search-answer">
+                <div class="a-label">Answer from your records</div>
+                <p>You last took antibiotics in <strong>February 2025</strong> — a 5-day course of Amoxicillin prescribed by Dr. Kapoor for a throat infection. Nothing since.</p>
+              </div>
+
+              <div class="eyebrow">3 related records</div>
+              <div class="recent-list mt-16">
+                <div class="recent-row">
+                  <div class="date">14 Feb 25</div>
+                  <div class="type">Rx</div>
+                  <div class="desc">Amoxicillin 500 mg — 5 days</div>
+                  <div class="src">Dr. Kapoor</div>
+                </div>
+                <div class="recent-row">
+                  <div class="date">14 Feb 25</div>
+                  <div class="type">Visit</div>
+                  <div class="desc">Throat infection — sore throat + fever</div>
+                  <div class="src">Kokilaben</div>
+                </div>
+                <div class="recent-row">
+                  <div class="date">28 Feb 25</div>
+                  <div class="type">Note</div>
+                  <div class="desc">"Feeling better, finished course"</div>
+                  <div class="src">Self</div>
+                </div>
+              </div>
+
+              <div class="mt-48"></div>
+              <div class="eyebrow">Try asking</div>
+              <div class="search-suggestions mt-16">
+                <span class="chip">What's my current medication list?</span>
+                <span class="chip">Show all my lab tests from 2024</span>
+                <span class="chip">Any therapy sessions this month?</span>
+                <span class="chip">When did I last see Dr. Kapoor?</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 15 · LANGUAGE / PLAIN                                         -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="language">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink active" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb">
+                <a data-goto="records">Records</a>
+                <span class="sep">/</span>
+                <a data-goto="detail">CBC · 12 Aug</a>
+                <span class="sep">/</span>
+                <span class="this">Read differently</span>
+              </div>
+              <div class="spacer"></div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody">
+              <h1 class="h-hero">Read this in a way that <span class="italic">works for you</span></h1>
+              <p class="sub mt-8">Change the language and the level of detail. The original stays untouched.</p>
+
+              <div class="mt-40"></div>
+
+              <div class="lang-controls">
+                <div class="g">
+                  <div class="eyebrow">Language</div>
+                  <div class="lang-toggle">
+                    <div class="seg on">English</div>
+                    <div class="seg">हिन्दी</div>
+                    <div class="seg">मराठी</div>
+                    <div class="seg">+</div>
+                  </div>
+                </div>
+                <div class="g">
+                  <div class="eyebrow">Detail level</div>
+                  <div class="lang-toggle">
+                    <div class="seg">Clinical</div>
+                    <div class="seg on">Plain language</div>
+                    <div class="seg">Very simple</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="parallel">
+                <div class="col">
+                  <div class="col-head">Original — as written by the lab</div>
+                  <div class="term-line">
+                    <div class="term">Hemoglobin: 11.2 g/dL (ref: 12.0–15.5)</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Serum 25(OH)D: 18 ng/mL (ref: 30–100)</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">MCV: 82 fL (ref: 80–100)</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Impression: Mild anemia with vitamin D insufficiency. Suggest supplementation.</div>
+                  </div>
+                  <p class="small muted mt-16">Kept exactly as your doctor and the lab wrote it. Never rewritten.</p>
+                </div>
+                <div class="col plain">
+                  <div class="col-head">Plain language — for you</div>
+                  <div class="term-line">
+                    <div class="term">Hemoglobin is a bit low</div>
+                    <div class="expl">Hemoglobin carries oxygen. Yours (11.2) is slightly below the healthy range of 12–15.5. Often linked to iron levels or feeling tired.</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Vitamin D is low</div>
+                    <div class="expl">Yours is 18. The healthy range starts at 30. Common in India — usually addressed with a supplement plus more sunlight.</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Red blood cell size is normal</div>
+                    <div class="expl">MCV measures the size of your red blood cells. Yours is in the normal range — a good sign.</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">The lab's summary</div>
+                    <div class="expl">"Mild anemia" (slightly low blood) plus vitamin D insufficiency. They recommend a supplement.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-40"></div>
+              <div class="glass-card">
+                <div class="hstack">
+                  <div>
+                    <div class="strong" style="font-family:'Familjen Grotesk',system-ui;font-size:15px;letter-spacing:-0.012em;">Not sure what to do next?</div>
+                    <div class="small muted" style="margin-top:4px;">This isn't medical advice — but you can bring these values to Dr. Kapoor on Wednesday.</div>
+                  </div>
+                  <div class="spacer"></div>
+                  <button class="btn small light" data-goto="chat">Ask about this</button>
+                  <button class="btn small dark" data-open-drawer="template">Share</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- 16 · SUMMARY                                                  -->
+      <!-- ============================================================ -->
+      <section class="screen" data-screen="shared">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="brand"><svg class="logo" viewBox="0 0 141.75 45.4" role="img" aria-label="Sage"><use href="#sage-mark"/></svg></div>
+            <div class="plink" data-goto="home">Home</div>
+            <div class="plink" data-goto="records">Records</div>
+            <div class="plink" data-goto="chat">Chat</div>
+            <div class="plink" data-goto="insights">Insights</div>
+            <div class="plink active" data-goto="shared">Shared</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile">Profile</div>
+            <div class="foot">
+              <div class="avatar">V</div>
+              <div class="who"><div class="name">Vikram</div><div class="plan">Free plan</div></div>
+            </div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Shared</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">V</div>
+            </div>
+            <div class="pbody pbody-narrow">
+              <div class="home-header">
+                <div>
+                  <h1 class="h-hero">Who has <span class="italic">what</span></h1>
+                  <p class="sub mt-8">3 active shares · you can revoke access at any time.</p>
+                </div>
+                <button class="btn small dark" data-open-drawer="template">Share something new</button>
+              </div>
+
+              <div class="filter-bar">
+                <span class="chip on">Active <span class="count">3</span></span>
+                <span class="chip">Expired <span class="count">4</span></span>
+                <span class="chip">Revoked <span class="count">2</span></span>
+              </div>
+
+              <div class="shared-list">
+
+                <div class="share-item">
+                  <div>
+                    <div class="who">Dr. Ananya Kapoor</div>
+                    <div class="what">Summary for a new doctor · Basics, active meds, recent labs, diagnoses</div>
+                    <div class="meta">
+                      <span>Shared 12 Aug 2026</span>
+                      <span class="dot">·</span>
+                      <span>Expires in 5 days</span>
+                      <span class="dot">·</span>
+                      <span>Opened 3 times · last on 14 Aug</span>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <span class="status-tag"><span class="live-dot"></span>Active</span>
+                    <div class="hstack" style="gap:4px;margin-top:6px;">
+                      <button class="btn tiny outline">View link</button>
+                      <button class="btn tiny outline">Revoke</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="share-item">
+                  <div>
+                    <div class="who">Dr. Sameer Rao</div>
+                    <div class="what">Therapy history · Session notes since June, GAD-7 assessments</div>
+                    <div class="meta">
+                      <span>Shared 28 Jul 2026</span>
+                      <span class="dot">·</span>
+                      <span>Never expires</span>
+                      <span class="dot">·</span>
+                      <span>Opened 8 times · last today</span>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <span class="status-tag"><span class="live-dot"></span>Active</span>
+                    <div class="hstack" style="gap:4px;margin-top:6px;">
+                      <button class="btn tiny outline">View link</button>
+                      <button class="btn tiny outline">Revoke</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="share-item">
+                  <div>
+                    <div class="who">Anjali Menon <span style="color:var(--ink-4);font-size:12px;font-weight:400;">— family</span></div>
+                    <div class="what">Emergency card · Blood type, allergies, meds, contact</div>
+                    <div class="meta">
+                      <span>Shared 20 Jul 2026</span>
+                      <span class="dot">·</span>
+                      <span>Expires in 2 days</span>
+                      <span class="dot">·</span>
+                      <span>Opened once · on 22 Jul</span>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <span class="status-tag expiring"><span class="live-dot"></span>Expiring</span>
+                    <div class="hstack" style="gap:4px;margin-top:6px;">
+                      <button class="btn tiny outline">Extend</button>
+                      <button class="btn tiny outline">Revoke</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <p class="small muted mt-32">Sharing always happens from the record itself — open a record and tap Share. Templates like "Summary for a new doctor" also live inside the share panel.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- SHARE DRAWER — overlays whatever screen you're on             -->
+      <!-- Two views inside: 'record' (default) and 'template' picker    -->
+      <!-- ============================================================ -->
+      <div class="drawer-scrim" id="drawer-scrim"></div>
+      <aside class="drawer" id="drawer" aria-hidden="true">
+
+        <!-- VIEW A: share this record (default) -->
+        <div class="drawer-view active" data-drawer-view="record">
+          <div class="drawer-head">
+            <div class="title">Share</div>
+            <button class="close" data-close-drawer aria-label="Close">×</button>
+          </div>
+          <div class="drawer-body">
+
+            <div class="drawer-source">
+              <div class="k">Sharing</div>
+              <div class="v">CBC — 12 August 2026</div>
+              <span class="switch" data-drawer-goto="template">or start from a template →</span>
+            </div>
+
+            <div class="drawer-section">
+              <div class="eyebrow">How much to include</div>
+              <div class="depth-pills">
+                <span class="chip">Headline only</span>
+                <span class="chip on">Plain summary</span>
+                <span class="chip">Full report</span>
+                <span class="chip">Flagged values only</span>
+              </div>
+              <p class="small muted mt-16" style="margin-top:12px;line-height:1.5;">
+                <strong style="color:var(--ink-2);font-weight:500;">Plain summary</strong> — one paragraph explaining the flagged values in plain language, plus the lab's own summary line. Doesn't include all 14 markers.
+              </p>
+            </div>
+
+            <div class="drawer-section">
+              <div class="eyebrow">Add context</div>
+              <div class="depth-pills">
+                <span class="chip">+ Your note</span>
+                <span class="chip on">+ Related records</span>
+                <span class="chip">+ Original PDF</span>
+              </div>
+            </div>
+
+            <div class="drawer-section">
+              <div class="eyebrow">Deliver via</div>
+              <div class="delivery-tabs">
+                <button class="tab on">Link</button>
+                <button class="tab">QR code</button>
+                <button class="tab">PDF</button>
+              </div>
+            </div>
+
+            <div class="drawer-section">
+              <div class="eyebrow">Access</div>
+              <div class="drawer-row">
+                <span class="k">For</span>
+                <span class="v">Dr. Kapoor <span style="color:var(--ink-4);font-weight:400;">· optional</span></span>
+              </div>
+              <div class="drawer-row">
+                <span class="k">Expires in</span>
+                <div class="mini-chips">
+                  <span class="chip small">24 h</span>
+                  <span class="chip small on">7 days</span>
+                  <span class="chip small">30 days</span>
+                  <span class="chip small">Never</span>
+                </div>
+              </div>
+              <div class="drawer-row">
+                <span class="k">Passcode</span>
+                <span class="v" style="color:var(--forest);cursor:pointer;font-size:12.5px;">Off · Add one</span>
+              </div>
+              <div class="drawer-row">
+                <span class="k">Notify me when opened</span>
+                <span class="v" style="color:var(--forest);font-size:12.5px;">On</span>
+              </div>
+            </div>
+
+          </div>
+          <div class="drawer-foot">
+            <div class="drawer-summary">
+              <strong>1 record</strong> · plain summary + related · expires in 7 days
+            </div>
+            <button class="btn mint block" data-close-drawer data-toast="Link copied — sage.app/s/vk-a4f9e2">Generate share link</button>
+          </div>
+        </div>
+
+        <!-- VIEW B: template picker -->
+        <div class="drawer-view" data-drawer-view="template">
+          <div class="drawer-head">
+            <div class="title">Start from a template</div>
+            <button class="close" data-close-drawer aria-label="Close">×</button>
+          </div>
+          <div class="drawer-body">
+            <button class="back-link" data-drawer-goto="record">← Back to this record</button>
+
+            <div class="drawer-section">
+              <div class="eyebrow">Who's it for?</div>
+              <div class="template-list">
+                <div class="template-opt" data-drawer-goto="record">
+                  <div class="name">A new doctor</div>
+                  <div class="hint">Basics, active meds, allergies, recent labs · 1 page</div>
+                </div>
+                <div class="template-opt" data-drawer-goto="record">
+                  <div class="name">Emergency / hospital</div>
+                  <div class="hint">Blood type, allergies, meds, emergency contact — first</div>
+                </div>
+                <div class="template-opt" data-drawer-goto="record">
+                  <div class="name">Therapist</div>
+                  <div class="hint">Mental health history, mood log, assessments</div>
+                </div>
+                <div class="template-opt" data-drawer-goto="record">
+                  <div class="name">Family member</div>
+                  <div class="hint">Emergency card only. Nothing clinical.</div>
+                </div>
+                <div class="template-opt" data-drawer-goto="record">
+                  <div class="name">Custom</div>
+                  <div class="hint">Pick your own sections and time range</div>
+                </div>
+              </div>
+            </div>
+
+            <p class="small muted">Templates set defaults for what's included and the depth. You can still adjust everything after choosing.</p>
+          </div>
+        </div>
+
+      </aside>
+
+
+
+    </div><!-- /frame -->
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  const screens = document.querySelectorAll('.screen');
+  const navLinks = document.querySelectorAll('.dev-nav a[data-goto]');
+
+  const drawer = document.getElementById('drawer');
+  const scrim = document.getElementById('drawer-scrim');
+
+  function goto(id, toastMsg) {
+    // back-compat: old summary/share hashes → new Shared tab
+    if (id === 'summary' || id === 'share') { id = 'shared'; }
+    screens.forEach(s => s.classList.toggle('active', s.dataset.screen === id));
+    navLinks.forEach(a => a.classList.toggle('active', a.dataset.goto === id));
+    window.scrollTo(0, 0);
+    document.querySelectorAll('.pbody, .modal-body, .chat-messages').forEach(el => el.scrollTop = 0);
+    if (toastMsg) showToast(toastMsg);
+    history.replaceState(null, '', '#' + id);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function openDrawer(view) {
+    drawer.classList.add('open');
+    scrim.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    setDrawerView(view || 'record');
+  }
+
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    scrim.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+  }
+
+  function setDrawerView(view) {
+    drawer.querySelectorAll('.drawer-view').forEach(v => {
+      v.classList.toggle('active', v.dataset.drawerView === view);
+    });
+  }
+
+  document.body.addEventListener('click', function(e) {
+    const openBtn = e.target.closest('[data-open-drawer]');
+    if (openBtn) { e.preventDefault(); openDrawer(openBtn.dataset.openDrawer); return; }
+
+    const closeBtn = e.target.closest('[data-close-drawer]');
+    if (closeBtn) {
+      e.preventDefault();
+      const toast = closeBtn.dataset.toast;
+      closeDrawer();
+      if (toast) showToast(toast);
+      return;
+    }
+
+    const switchBtn = e.target.closest('[data-drawer-goto]');
+    if (switchBtn) { e.preventDefault(); setDrawerView(switchBtn.dataset.drawerGoto); return; }
+
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    e.preventDefault();
+    goto(el.dataset.goto, el.dataset.toast);
+  });
+
+  scrim.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+  });
+
+  /* --- micro-interactions. Wrapped so a failure here can never
+         stop navigation above from working. --- */
+  try {
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // ripple on every .btn press
+    if (!calm) {
+      document.body.addEventListener('pointerdown', function(e) {
+        const b = e.target.closest('.btn');
+        if (!b) return;
+        const r = b.getBoundingClientRect();
+        const size = Math.max(r.width, r.height);
+        const s = document.createElement('span');
+        s.className = 'ripple';
+        s.style.width = s.style.height = size + 'px';
+        s.style.left = (e.clientX - r.left - size / 2) + 'px';
+        s.style.top  = (e.clientY - r.top  - size / 2) + 'px';
+        b.appendChild(s);
+        setTimeout(() => s.remove(), 520);
+      });
+    }
+
+    // data-toast on its own (Copy, Mark taken, etc.) — no navigation
+    document.body.addEventListener('click', function(e) {
+      const el = e.target.closest('[data-toast]');
+      if (!el || el.hasAttribute('data-goto') || el.hasAttribute('data-close-drawer')) return;
+      showToast(el.dataset.toast);
+    });
+
+    // mic button toggles its recording state so the voice moment is live
+    document.body.addEventListener('click', function(e) {
+      const m = e.target.closest('.mic-btn');
+      if (!m) return;
+      m.classList.toggle('recording');
+    });
+
+    // listen buttons toggle playback state
+    document.body.addEventListener('click', function(e) {
+      const l = e.target.closest('.listen-btn');
+      if (!l) return;
+      const was = l.classList.contains('playing');
+      document.querySelectorAll('.listen-btn.playing').forEach(x => x.classList.remove('playing'));
+      if (!was) l.classList.add('playing');
+    });
+  } catch (err) { /* visuals only — ignore */ }
+
+  const initial = window.location.hash.replace('#', '');
+  if (initial && document.querySelector(`.screen[data-screen="${initial}"]`)) {
+    goto(initial);
+  }
+})();
+</script>
+
+</body>
+</html>
