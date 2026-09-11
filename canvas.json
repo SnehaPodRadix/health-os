@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "1 · Log in", "x": 0, "y": 0, "w": 1200, "h": 860 },
+    { "file": "Dashboard.dc.html", "title": "2 · Dashboard & Records", "x": 1360, "y": 0, "w": 1200, "h": 860 },
+    { "file": "Chat.dc.html", "title": "3 · AI Health Chat", "x": 2720, "y": 0, "w": 1200, "h": 860 }
+  ],
+  "annotations": [
+    { "id": "title", "x": 0, "y": -150, "w": 560, "text": "Health OS — web app wireframe (low-fi)\nFlow: Log in → Dashboard (upload records) → Chat. Grey bars are placeholder text; one accent marks primary/interactive elements." },
+    { "id": "note-records", "x": 1360, "y": -110, "w": 520, "text": "Records upload here (drag-drop or browse; images + PDF) and feed context into the AI chat — e.g. it can cite Blood_test.pdf." },
+    { "id": "note-audio", "x": 2720, "y": -150, "w": 620, "text": "Accessibility for linguistic barriers:\n• Mic = speech → text (STT) for voice input\n• Listen = text → speech (TTS) reads replies aloud\n• Language pill switches both\n• \"Connect with a practitioner\" escalates to a human." }
+  ],
+  "launch": { "view": "canvas" }
+}

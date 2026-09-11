@@ -1,0 +1,2268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health OS — UX Flow Prototype</title>
+<style>
+/* ---------- reset / base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #e8e6df;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+/* ---------- design tokens ---------- */
+:root {
+  --bg: #efeee9;
+  --surface: #ffffff;
+  --panel: #f6f5f0;
+  --ink: #1a1a1a;
+  --muted: #7a7a7a;
+  --faint: #b3b0a8;
+  --border: #d1cec4;
+  --border-dashed: #b8b5ac;
+  --bar: #d5d3cc;
+  --bar-dark: #b0ada4;
+  --accent: #2b3856;
+  --accent-soft: #e6e8f0;
+  --danger: #8b4a4a;
+  --ok: #4a6b53;
+}
+
+/* ---------- app shell (dev navigator + stage) ---------- */
+.app { display: flex; min-height: 100vh; }
+
+.dev-nav {
+  width: 240px;
+  background: #1a1a1a;
+  color: #e0dfd9;
+  padding: 20px 16px;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  font-size: 12.5px;
+}
+.dev-nav h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: 0.02em; }
+.dev-nav .sub { font-size: 11px; color: #8a8880; margin-bottom: 20px; }
+.dev-nav .group { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; color: #6a6860; margin: 18px 0 6px; }
+.dev-nav a { display: block; padding: 6px 10px; border-radius: 4px; color: #c8c6bd; margin-bottom: 1px; }
+.dev-nav a:hover { background: #2b2a26; color: #fff; }
+.dev-nav a.active { background: #2b3856; color: #fff; }
+.dev-nav .num { display: inline-block; width: 22px; color: #6a6860; }
+.dev-nav a.active .num { color: #a8b0c8; }
+.dev-nav .note { font-size: 11px; color: #6a6860; margin-top: 20px; padding: 10px; border: 1px dashed #3a3934; border-radius: 4px; line-height: 1.4; }
+
+.stage { flex: 1; padding: 24px; display: flex; align-items: flex-start; justify-content: center; }
+.frame {
+  width: 1200px;
+  min-height: 780px;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+  position: relative;
+}
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ---------- product shell (used on Home, Records, Chat, Insights, Profile, Detail) ---------- */
+.pshell { display: flex; min-height: 780px; }
+.pnav {
+  width: 200px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pnav .logo {
+  padding: 6px 10px 20px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.pnav .logo .brand { color: var(--muted); font-weight: 400; }
+.pnav .plink {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 4px;
+  font-size: 13.5px; color: var(--ink);
+  cursor: pointer;
+}
+.pnav .plink:hover { background: rgba(0,0,0,0.03); }
+.pnav .plink.active { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.pnav .plink .ico { width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 2px; flex-shrink: 0; opacity: 0.7; }
+.pnav .divider { height: 1px; background: var(--border); margin: 12px 8px; }
+.pnav .foot { margin-top: auto; padding: 8px 10px; font-size: 11.5px; color: var(--muted); }
+
+.pmain { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.pbar {
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.pbar .crumb { font-size: 13px; color: var(--muted); }
+.pbar .crumb .this { color: var(--ink); }
+.pbar .search {
+  margin-left: auto;
+  width: 280px;
+  height: 32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 12px;
+  display: flex; align-items: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.pbar .avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 500;
+}
+.pbody { flex: 1; padding: 28px 32px; overflow-y: auto; }
+
+/* ---------- shared primitives ---------- */
+.h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+.h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.sub { font-size: 13px; color: var(--muted); margin: 0; }
+
+.bar { display: block; height: 8px; border-radius: 2px; background: var(--bar); }
+.bar.dark { background: var(--bar-dark); }
+.bar.short { width: 40%; }
+.bar.med { width: 65%; }
+.bar.long { width: 90%; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.small { padding: 5px 10px; font-size: 12px; }
+.btn.block { display: flex; width: 100%; justify-content: center; }
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 16px;
+}
+.card.dashed { border: 1.5px dashed var(--border-dashed); }
+.card.panel { background: var(--panel); }
+
+.field {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 14px;
+}
+.field label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.field .input {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 0 12px;
+  display: flex; align-items: center;
+  font-size: 13px;
+  color: var(--ink);
+}
+.field .input.empty { color: var(--faint); }
+.field .input.tall { height: 80px; align-items: flex-start; padding-top: 10px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip.tag { background: var(--panel); border-color: var(--border); padding: 2px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.tag-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--muted); }
+.tag-dot.lab { background: #7a5a4a; }
+.tag-dot.med { background: #4a6b7a; }
+.tag-dot.visit { background: #5a7a5a; }
+.tag-dot.mental { background: #7a5a7a; }
+.tag-dot.life { background: #7a7a4a; }
+.tag-dot.imaging { background: #5a5a7a; }
+.tag-dot.event { background: #8b4a4a; }
+
+/* ---------- login screen ---------- */
+.login-wrap {
+  min-height: 780px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  background: var(--panel);
+}
+.login-card {
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 40px 36px;
+}
+.login-brand { font-weight: 600; font-size: 16px; margin-bottom: 32px; }
+.login-brand .brand { color: var(--muted); font-weight: 400; }
+.login-title { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+.login-sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; font-size: 11px; color: var(--faint); }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.login-foot { text-align: center; font-size: 12.5px; color: var(--muted); margin-top: 24px; }
+
+/* ---------- onboarding ---------- */
+.onb-wrap {
+  min-height: 780px;
+  padding: 40px;
+  background: var(--panel);
+  display: flex; flex-direction: column; align-items: center;
+}
+.onb-progress { display: flex; gap: 6px; margin-bottom: 40px; margin-top: 20px; }
+.onb-progress .pip { width: 32px; height: 4px; border-radius: 2px; background: var(--border); }
+.onb-progress .pip.on { background: var(--accent); }
+.onb-progress .pip.done { background: var(--muted); }
+.onb-card {
+  width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 40px;
+}
+.onb-step { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.onb-q { font-size: 20px; font-weight: 500; margin-bottom: 24px; line-height: 1.35; }
+.onb-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
+.onb-skip { font-size: 13px; color: var(--muted); }
+
+/* ---------- home ---------- */
+.home-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-top: 8px; }
+.today-card { padding: 18px 20px; }
+.today-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.today-item:last-child { border-bottom: none; }
+.today-item .when { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; min-width: 60px; padding-top: 2px; }
+.today-item .body { flex: 1; font-size: 13.5px; }
+.today-item .body .sub { font-size: 12px; margin-top: 2px; }
+
+.ask-card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; }
+.ask-input {
+  margin-top: 10px;
+  height: 40px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  padding: 0 14px;
+  display: flex; align-items: center;
+  color: var(--faint); font-size: 13px;
+}
+.ask-suggestions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-suggestions .chip { font-size: 11.5px; padding: 3px 9px; }
+
+.recent-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer; }
+.recent-row:last-child { border-bottom: none; }
+.recent-row:hover { background: rgba(0,0,0,0.02); }
+.recent-row .date { font-size: 11px; color: var(--muted); min-width: 50px; }
+.recent-row .type { min-width: 90px; }
+.recent-row .desc { flex: 1; color: var(--ink); }
+.recent-row .src { font-size: 11.5px; color: var(--muted); }
+
+.section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.section-head .more { font-size: 12px; color: var(--muted); }
+
+/* ---------- home empty ---------- */
+.empty-hero {
+  padding: 60px 40px;
+  text-align: center;
+  border: 1.5px dashed var(--border-dashed);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.empty-hero .ico { width: 40px; height: 40px; border: 1.5px solid var(--muted); border-radius: 6px; margin: 0 auto 16px; opacity: 0.5; }
+.empty-hero h2 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+.empty-hero p { color: var(--muted); font-size: 13px; max-width: 380px; margin: 0 auto 20px; }
+.empty-options { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+
+/* ---------- add record modal ---------- */
+.modal-wrap {
+  min-height: 780px;
+  background: rgba(20,20,20,0.35);
+  padding: 60px 40px;
+  display: flex; justify-content: center;
+}
+.modal {
+  width: 640px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  align-self: flex-start;
+}
+.modal-head {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-head .close { color: var(--muted); font-size: 18px; }
+.modal-body { padding: 24px; }
+.modal-foot {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel);
+}
+.modal-foot .step { font-size: 12px; color: var(--muted); }
+
+.source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.source-opt {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer;
+  background: var(--surface);
+}
+.source-opt:hover { border-color: var(--accent); }
+.source-opt .ico { width: 24px; height: 24px; border: 1.5px solid var(--muted); border-radius: 4px; margin-bottom: 8px; opacity: 0.6; }
+.source-opt .name { font-weight: 500; font-size: 14px; }
+.source-opt .hint { font-size: 12px; color: var(--muted); }
+
+/* upload state */
+.dropzone {
+  border: 1.5px dashed var(--border-dashed);
+  border-radius: 6px;
+  padding: 50px 24px;
+  text-align: center;
+  background: var(--panel);
+}
+.dropzone .name { font-size: 14px; font-weight: 500; margin: 12px 0 4px; }
+.dropzone .hint { font-size: 12px; color: var(--muted); }
+.file-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px;
+  margin-top: 10px; background: var(--surface); font-size: 13px;
+}
+.file-row .thumb { width: 32px; height: 40px; background: var(--bar); border-radius: 2px; flex-shrink: 0; }
+.file-row .name { flex: 1; }
+.file-row .size { color: var(--muted); font-size: 12px; }
+
+/* processing */
+.processing-split { display: grid; grid-template-columns: 200px 1fr; gap: 24px; }
+.doc-preview {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  aspect-ratio: 3/4;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.extraction-list { display: flex; flex-direction: column; gap: 14px; }
+.extract-status { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.extract-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.extract-item {
+  display: grid; grid-template-columns: 130px 1fr;
+  gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.extract-item:last-child { border-bottom: none; }
+.extract-item .k { color: var(--muted); }
+.extract-item .v { font-weight: 500; }
+.extract-item.pending .v { color: var(--faint); font-style: italic; }
+.extract-item.pending .v::after { content: '...'; }
+
+/* confirm + context */
+.confirm-header {
+  padding: 14px 16px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.confirm-header .badge {
+  padding: 3px 10px; background: var(--accent-soft); color: var(--accent);
+  border-radius: 20px; font-size: 11.5px; font-weight: 500;
+}
+.confirm-fields { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.confirm-field {
+  display: grid; grid-template-columns: 130px 1fr auto;
+  gap: 12px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 4px;
+  align-items: center;
+  font-size: 13px;
+}
+.confirm-field .k { color: var(--muted); }
+.confirm-field .edit { font-size: 11.5px; color: var(--muted); }
+
+.context-q {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 14px 16px; margin-bottom: 8px;
+}
+.context-q .q { font-size: 13.5px; margin-bottom: 10px; }
+.context-q .opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.context-note { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+
+/* ---------- records / timeline ---------- */
+.filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-bar .divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.timeline { position: relative; }
+.timeline-month {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); margin: 24px 0 8px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.timeline-month:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.tl-entry {
+  display: grid; grid-template-columns: 60px 20px 1fr auto;
+  gap: 14px; align-items: baseline;
+  padding: 12px 8px; border-radius: 4px;
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.tl-entry:hover { background: var(--panel); }
+.tl-entry .day { font-size: 12px; color: var(--muted); }
+.tl-entry .icn { display: flex; justify-content: center; padding-top: 4px; }
+.tl-entry .main .title { font-weight: 500; }
+.tl-entry .main .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.tl-entry .aside { font-size: 11.5px; color: var(--muted); text-align: right; }
+
+/* ---------- chat ---------- */
+.chat-body { display: flex; flex-direction: column; height: 728px; }
+.chat-messages { flex: 1; padding: 24px 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.chat-turn { display: flex; }
+.chat-turn.user { justify-content: flex-end; }
+.bubble { max-width: 70%; padding: 12px 16px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
+.bubble.ai { background: var(--panel); border: 1px solid var(--border); border-top-left-radius: 4px; }
+.bubble.user { background: var(--accent); color: #fff; border-top-right-radius: 4px; }
+.bubble .ref { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+.chat-composer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+.chat-composer .input {
+  flex: 1; height: 40px; border: 1px solid var(--border); border-radius: 4px;
+  padding: 0 14px; display: flex; align-items: center;
+  color: var(--faint); font-size: 13px;
+}
+
+/* ---------- record detail ---------- */
+.detail-head {
+  padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.detail-head .meta { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.detail-toggle {
+  display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+  margin-bottom: 20px; font-size: 12.5px;
+}
+.detail-toggle .seg { padding: 6px 14px; cursor: pointer; }
+.detail-toggle .seg.on { background: var(--accent); color: #fff; }
+.detail-grid { display: grid; grid-template-columns: 1fr 220px; gap: 24px; }
+.detail-value {
+  display: grid; grid-template-columns: 1fr auto auto;
+  gap: 16px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 4px;
+  margin-bottom: 8px;
+  align-items: baseline;
+}
+.detail-value .name { font-weight: 500; font-size: 13.5px; }
+.detail-value .expl { font-size: 12px; color: var(--muted); margin-top: 3px; grid-column: 1 / -1; padding-top: 6px; border-top: 1px dashed var(--border); }
+.detail-value .num { font-size: 15px; font-weight: 500; }
+.detail-value .range { font-size: 11.5px; color: var(--muted); }
+.detail-value .flag { padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+.detail-value .flag.high { background: rgba(139,74,74,0.1); color: var(--danger); }
+.detail-value .flag.ok { background: rgba(74,107,83,0.1); color: var(--ok); }
+
+.orig-view {
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  min-height: 400px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* ---------- summary ---------- */
+.summary-wizard { display: grid; grid-template-columns: 200px 1fr; gap: 32px; }
+.wizard-steps { display: flex; flex-direction: column; gap: 4px; }
+.wizard-step {
+  padding: 10px 14px; border-radius: 4px;
+  font-size: 13px; color: var(--muted);
+  border-left: 2px solid var(--border);
+  cursor: pointer;
+}
+.wizard-step.on { color: var(--accent); border-left-color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+.wizard-step.done { color: var(--ink); }
+.wizard-step .num { font-size: 11px; color: var(--muted); margin-right: 8px; }
+
+.purpose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.purpose-opt {
+  border: 1px solid var(--border); border-radius: 6px; padding: 16px;
+  cursor: pointer;
+}
+.purpose-opt.on { border-color: var(--accent); background: var(--accent-soft); }
+.purpose-opt .name { font-weight: 500; font-size: 14px; margin-bottom: 4px; }
+.purpose-opt .hint { font-size: 12px; color: var(--muted); }
+
+.sum-preview {
+  border: 1px solid var(--border); border-radius: 6px; padding: 20px;
+  background: var(--panel);
+  max-height: 400px; overflow-y: auto;
+}
+.sum-preview h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 16px 0 6px; }
+.sum-preview h4:first-child { margin-top: 0; }
+.sum-preview p { font-size: 13px; margin: 0 0 8px; line-height: 1.55; }
+.sum-preview ul { margin: 0 0 8px; padding-left: 20px; font-size: 13px; }
+.sum-preview li { margin-bottom: 3px; }
+
+/* ---------- share ---------- */
+.share-methods { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.share-method {
+  border: 1px solid var(--border); border-radius: 6px; padding: 18px 14px;
+  text-align: center; cursor: pointer;
+}
+.share-method.on { border-color: var(--accent); background: var(--accent-soft); }
+.share-method .ico { width: 32px; height: 32px; border: 1.5px solid var(--muted); border-radius: 4px; margin: 0 auto 10px; opacity: 0.6; }
+.share-method .name { font-weight: 500; font-size: 13.5px; margin-bottom: 4px; }
+.share-method .hint { font-size: 11.5px; color: var(--muted); }
+.share-link {
+  padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+  font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.share-scope { padding: 14px; border: 1px solid var(--border); border-radius: 6px; margin-top: 20px; }
+.scope-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+.scope-row .box { width: 14px; height: 14px; border: 1.5px solid var(--border); border-radius: 2px; flex-shrink: 0; }
+.scope-row.on .box { background: var(--accent); border-color: var(--accent); position: relative; }
+.scope-row.on .box::after { content: ''; position: absolute; top: 2px; left: 4px; width: 3px; height: 6px; border: 1.5px solid #fff; border-top: 0; border-left: 0; transform: rotate(45deg); }
+
+/* ---------- category / mental health view ---------- */
+.mood-trend {
+  padding: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+.mood-graph {
+  display: flex; align-items: flex-end; gap: 3px; height: 60px; margin: 12px 0;
+}
+.mood-graph .col { flex: 1; background: var(--bar-dark); border-radius: 2px 2px 0 0; opacity: 0.8; }
+
+/* ---------- insights ---------- */
+.insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.insight-card { padding: 20px; }
+.insight-card .metric { font-size: 24px; font-weight: 600; margin: 4px 0 2px; }
+.insight-card .delta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.insight-graph { height: 60px; display: flex; align-items: flex-end; gap: 4px; margin: 12px 0 4px; }
+.insight-graph .col { flex: 1; background: var(--bar); border-radius: 2px 2px 0 0; }
+
+/* ---------- profile ---------- */
+.profile-section { padding: 20px; margin-bottom: 16px; }
+.profile-row {
+  display: grid; grid-template-columns: 180px 1fr auto;
+  gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px; align-items: center;
+}
+.profile-row:last-child { border-bottom: none; }
+.profile-row .k { color: var(--muted); font-size: 13px; }
+
+.care-list { display: flex; flex-direction: column; gap: 10px; }
+.care-item { display: flex; align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--border); border-radius: 4px; }
+.care-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--bar); flex-shrink: 0; }
+.care-name { font-weight: 500; font-size: 13.5px; }
+.care-role { font-size: 12px; color: var(--muted); }
+
+/* ---------- language / translation ---------- */
+.lang-toggle {
+  display: inline-flex; gap: 0;
+  border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+  font-size: 12.5px; margin-bottom: 20px;
+}
+.lang-toggle .seg { padding: 6px 12px; cursor: pointer; color: var(--muted); }
+.lang-toggle .seg.on { background: var(--accent); color: #fff; }
+
+.parallel {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  margin-top: 12px;
+}
+.parallel .col { border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+.parallel .col-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; }
+.term-line { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.term-line:last-child { border-bottom: none; }
+.term-line .term { font-weight: 500; }
+.term-line .expl { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+
+/* ---------- search ---------- */
+.search-input {
+  width: 100%; padding: 14px 18px;
+  border: 1.5px solid var(--accent); border-radius: 6px;
+  font-size: 15px; margin-bottom: 20px;
+  background: var(--surface);
+}
+.search-hint { font-size: 12px; color: var(--muted); margin-bottom: 20px; padding-left: 4px; }
+.search-answer {
+  background: var(--accent-soft); border-left: 3px solid var(--accent);
+  padding: 16px 20px; margin-bottom: 24px; border-radius: 0 4px 4px 0;
+  font-size: 13.5px;
+}
+.search-answer .a-label { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-weight: 500; }
+.search-results-head { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; }
+
+/* ---------- helpers ---------- */
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.spacer { flex: 1; }
+.hstack { display: flex; align-items: center; gap: 10px; }
+.vstack { display: flex; flex-direction: column; gap: 10px; }
+.strong { font-weight: 500; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+
+/* ---------- toast on save ---------- */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 4px;
+  font-size: 13px;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============================================================ -->
+  <!-- REVIEW NAVIGATOR (not part of product; for jumping screens)  -->
+  <!-- ============================================================ -->
+  <aside class="dev-nav">
+    <h1>Health OS · UX Flow</h1>
+    <div class="sub">Prototype — click to jump</div>
+
+    <div class="group">Setup</div>
+    <a data-goto="login"><span class="num">01</span>Login</a>
+    <a data-goto="onboarding"><span class="num">02</span>Onboarding</a>
+    <a data-goto="home-empty"><span class="num">15</span>Home (first use)</a>
+
+    <div class="group">Main app</div>
+    <a data-goto="home"><span class="num">03</span>Home</a>
+    <a data-goto="records"><span class="num">09</span>Records / Timeline</a>
+    <a data-goto="records-mental"><span class="num">10</span>Category view (Mental)</a>
+    <a data-goto="chat"><span class="num">—</span>Chat</a>
+    <a data-goto="insights"><span class="num">—</span>Insights</a>
+    <a data-goto="profile"><span class="num">—</span>Profile / Care team</a>
+
+    <div class="group">Add flow</div>
+    <a data-goto="add-source"><span class="num">04</span>Add — choose source</a>
+    <a data-goto="add-upload"><span class="num">05</span>Add — file selected</a>
+    <a data-goto="processing"><span class="num">06</span>Processing</a>
+    <a data-goto="confirm"><span class="num">07</span>Confirm + context</a>
+    <a data-goto="detail"><span class="num">08</span>Record detail</a>
+
+    <div class="group">Explore</div>
+    <a data-goto="search"><span class="num">11</span>Search</a>
+    <a data-goto="language"><span class="num">14</span>Language / plain</a>
+
+    <div class="group">Sharing</div>
+    <a data-goto="summary"><span class="num">12</span>Summary generation</a>
+    <a data-goto="share"><span class="num">13</span>Share</a>
+
+    <div class="note">In-product nav is real: clicking sidebar items or record rows moves screens. This left rail is for out-of-order review.</div>
+  </aside>
+
+
+  <!-- ============================================================ -->
+  <!-- STAGE                                                        -->
+  <!-- ============================================================ -->
+  <main class="stage">
+    <div class="frame">
+
+
+      <!-- ==================================================== -->
+      <!-- 01 · LOGIN                                            -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="login">
+        <div class="login-wrap">
+          <div class="login-card">
+            <div class="login-brand"><span class="brand">◈</span> Health OS</div>
+            <div class="login-title">Welcome back</div>
+            <div class="login-sub">Sign in to your health records.</div>
+
+            <div class="field">
+              <label>Email</label>
+              <div class="input empty">you@example.com</div>
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <div class="input empty">••••••••</div>
+            </div>
+
+            <button class="btn primary block" data-goto="onboarding">Sign in</button>
+
+            <div class="login-divider">or</div>
+
+            <button class="btn block">Continue with Google</button>
+            <button class="btn block" style="margin-top:8px;">Continue with Apple</button>
+
+            <div class="login-foot">New here? <a data-goto="onboarding" style="color:var(--accent);text-decoration:underline;">Create an account</a></div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 02 · ONBOARDING                                       -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="onboarding">
+        <div class="onb-wrap">
+          <div class="login-brand" style="margin-bottom:8px;"><span class="brand">◈</span> Health OS</div>
+          <div class="onb-progress">
+            <span class="pip done"></span>
+            <span class="pip on"></span>
+            <span class="pip"></span>
+          </div>
+
+          <div class="onb-card">
+            <div class="onb-step">Step 2 of 3 · about a minute</div>
+            <div class="onb-q">A few things so records land in the right place.</div>
+
+            <div class="field">
+              <label>What should we call you?</label>
+              <div class="input">Priya Sharma</div>
+            </div>
+            <div class="field">
+              <label>Date of birth</label>
+              <div class="input">14 March 1991</div>
+            </div>
+            <div class="field">
+              <label>Anything we should know upfront? (optional)</label>
+              <div class="input tall empty">e.g. penicillin allergy, hypertension, none — you can add more later</div>
+            </div>
+
+            <div class="onb-actions">
+              <a class="onb-skip" data-goto="home-empty">Skip for now</a>
+              <button class="btn primary" data-goto="home-empty">Continue →</button>
+            </div>
+          </div>
+
+          <div class="muted small mt-16">You can change any of this later. Nothing is shared with anyone.</div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 15 · HOME (first-use empty)                           -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="home-empty">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink active" data-goto="home-empty"><span class="ico"></span>Home</div>
+            <div class="plink" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Home</span></div>
+              <div class="search">Search everything…</div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <h1 class="h1">Hello, Priya.</h1>
+              <p class="sub">Let's get your health records in one place.</p>
+
+              <div class="mt-24"></div>
+
+              <div class="empty-hero">
+                <div class="ico"></div>
+                <h2>No records yet</h2>
+                <p>Add your first record and we'll start building your health history. You can add existing reports, prescriptions, or scans — one at a time or in a batch.</p>
+                <div class="empty-options">
+                  <button class="btn primary" data-goto="add-source">Add your first record</button>
+                  <button class="btn">Import from Apple Health</button>
+                </div>
+                <div class="small muted mt-16">You can also connect to your hospital, clinic, or wearable device.</div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="h3">While we're empty — a few things you can do</div>
+              <div class="home-grid">
+                <div class="card panel">
+                  <div class="strong">Set up your emergency card</div>
+                  <p class="small muted mt-8" style="margin:6px 0 12px;">Blood type, allergies, key medications. Accessible from your lock screen if you need it.</p>
+                  <button class="btn small">Set up</button>
+                </div>
+                <div class="card panel">
+                  <div class="strong">Add your care team</div>
+                  <p class="small muted mt-8" style="margin:6px 0 12px;">Your GP, specialists, therapist. Makes sharing records instant later.</p>
+                  <button class="btn small" data-goto="profile">Add doctors</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 03 · HOME (populated)                                 -->
+      <!-- ==================================================== -->
+      <section class="screen active" data-screen="home">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink active" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Home</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+                <div>
+                  <h1 class="h1">Good morning, Priya.</h1>
+                  <p class="sub">You have 47 records across 3 years.</p>
+                </div>
+                <button class="btn primary" data-goto="add-source">+ Add record</button>
+              </div>
+
+              <div class="mt-24"></div>
+
+              <div class="home-grid">
+                <!-- LEFT: today + recent -->
+                <div>
+                  <div class="section-head"><div class="h3" style="margin:0;">Today</div></div>
+                  <div class="card today-card">
+                    <div class="today-item">
+                      <div class="when">09:00</div>
+                      <div class="body">
+                        <div class="strong">Metformin 500mg</div>
+                        <div class="sub">Daily · with breakfast</div>
+                      </div>
+                      <button class="btn small ghost">Mark taken</button>
+                    </div>
+                    <div class="today-item">
+                      <div class="when">14 Sep</div>
+                      <div class="body">
+                        <div class="strong">Follow-up with Dr. Kapoor</div>
+                        <div class="sub">Wed · 4:30 PM · Kokilaben Hospital</div>
+                      </div>
+                      <button class="btn small ghost">Prepare</button>
+                    </div>
+                    <div class="today-item">
+                      <div class="when">Note</div>
+                      <div class="body">
+                        <div>Vitamin D was low in your last test. Consider a follow-up in 3 months.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-24"></div>
+                  <div class="section-head">
+                    <div class="h3" style="margin:0;">Recent activity</div>
+                    <a class="more" data-goto="records">See all →</a>
+                  </div>
+                  <div class="card" style="padding:6px 16px;">
+                    <div class="recent-row" data-goto="detail">
+                      <div class="date">12 Aug</div>
+                      <div class="type"><span class="tag-dot lab"></span> Lab report</div>
+                      <div class="desc">Complete blood count (CBC)</div>
+                      <div class="src">Metropolis Labs</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">05 Aug</div>
+                      <div class="type"><span class="tag-dot med"></span> Prescription</div>
+                      <div class="desc">Metformin, Vitamin D3</div>
+                      <div class="src">Dr. Kapoor</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">28 Jul</div>
+                      <div class="type"><span class="tag-dot mental"></span> Therapy note</div>
+                      <div class="desc">Session with Dr. Rao</div>
+                      <div class="src">Self-added</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">22 Jul</div>
+                      <div class="type"><span class="tag-dot event"></span> Diagnosis</div>
+                      <div class="desc">Vitamin D deficiency</div>
+                      <div class="src">Dr. Kapoor</div>
+                    </div>
+                    <div class="recent-row">
+                      <div class="date">20 Jul</div>
+                      <div class="type"><span class="tag-dot visit"></span> Doctor visit</div>
+                      <div class="desc">Annual check-up</div>
+                      <div class="src">Kokilaben Hospital</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT: ask + shortcuts -->
+                <div>
+                  <div class="ask-card">
+                    <div class="strong">Ask about your health</div>
+                    <p class="small muted" style="margin:4px 0 0;">Anything from your own records. Not medical advice.</p>
+                    <div class="ask-input" data-goto="chat">When did I last have a blood test?</div>
+                    <div class="ask-suggestions">
+                      <span class="chip">Show my medications</span>
+                      <span class="chip">Explain my last lab</span>
+                      <span class="chip">Prep for tomorrow's visit</span>
+                    </div>
+                  </div>
+
+                  <div class="mt-24"></div>
+
+                  <div class="card panel">
+                    <div class="strong">Quick actions</div>
+                    <div class="vstack" style="margin-top:12px;">
+                      <button class="btn block" data-goto="summary" style="justify-content:flex-start;">📋 Generate a summary</button>
+                      <button class="btn block" data-goto="share" style="justify-content:flex-start;">🔗 Share with a doctor</button>
+                      <button class="btn block" style="justify-content:flex-start;">🆘 View emergency card</button>
+                    </div>
+                  </div>
+
+                  <div class="mt-24"></div>
+
+                  <div class="card">
+                    <div class="strong">Care team</div>
+                    <div class="vstack mt-16">
+                      <div class="hstack">
+                        <div class="care-avatar" style="width:28px;height:28px;"></div>
+                        <div style="flex:1;font-size:13px;">
+                          <div>Dr. Ananya Kapoor</div>
+                          <div class="small muted">GP · Kokilaben</div>
+                        </div>
+                      </div>
+                      <div class="hstack">
+                        <div class="care-avatar" style="width:28px;height:28px;"></div>
+                        <div style="flex:1;font-size:13px;">
+                          <div>Dr. Sameer Rao</div>
+                          <div class="small muted">Therapist</div>
+                        </div>
+                      </div>
+                    </div>
+                    <a class="more" style="display:block;margin-top:12px;" data-goto="profile">Manage care team →</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 09 · RECORDS / TIMELINE                               -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="records">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink active" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Records</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+                <div>
+                  <h1 class="h1">Your health, over time</h1>
+                  <p class="sub">47 records · 2023 – 2026</p>
+                </div>
+                <div class="hstack">
+                  <button class="btn">⏬ Export all</button>
+                  <button class="btn primary" data-goto="add-source">+ Add</button>
+                </div>
+              </div>
+
+              <div class="mt-24"></div>
+
+              <div class="filter-bar">
+                <span class="chip on">All · 47</span>
+                <span class="chip">Medical · 22</span>
+                <span class="chip" data-goto="records-mental">Mental · 8</span>
+                <span class="chip">Lifestyle · 14</span>
+                <span class="chip">Family · 3</span>
+                <div class="divider"></div>
+                <span class="chip">Last 3 months ▾</span>
+                <span class="chip">Sort: newest ▾</span>
+              </div>
+
+              <div class="timeline">
+                <div class="timeline-month">August 2026</div>
+                <div class="tl-entry" data-goto="detail">
+                  <div class="day">Aug 12</div>
+                  <div class="icn"><span class="tag-dot lab"></span></div>
+                  <div class="main">
+                    <div class="title">Complete blood count (CBC)</div>
+                    <div class="meta">Lab report · Metropolis Labs · 3 values flagged</div>
+                  </div>
+                  <div class="aside">PDF · 2 pages</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Aug 05</div>
+                  <div class="icn"><span class="tag-dot med"></span></div>
+                  <div class="main">
+                    <div class="title">Prescription — Metformin, Vitamin D3</div>
+                    <div class="meta">Dr. Ananya Kapoor · 90-day supply</div>
+                  </div>
+                  <div class="aside">Photo</div>
+                </div>
+
+                <div class="timeline-month">July 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jul 28</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">Therapy session</div>
+                    <div class="meta">Dr. Sameer Rao · 50 min</div>
+                  </div>
+                  <div class="aside">Journal entry</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 22</div>
+                  <div class="icn"><span class="tag-dot event"></span></div>
+                  <div class="main">
+                    <div class="title">Diagnosis: Vitamin D deficiency</div>
+                    <div class="meta">Follow-up from annual check-up</div>
+                  </div>
+                  <div class="aside">Linked · 2 records</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 20</div>
+                  <div class="icn"><span class="tag-dot visit"></span></div>
+                  <div class="main">
+                    <div class="title">Annual check-up</div>
+                    <div class="meta">Kokilaben Hospital · Dr. Kapoor</div>
+                  </div>
+                  <div class="aside">Linked · 4 records</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 20</div>
+                  <div class="icn"><span class="tag-dot lab"></span></div>
+                  <div class="main">
+                    <div class="title">Vitamin D, Thyroid panel, Lipid profile</div>
+                    <div class="meta">Ordered by Dr. Kapoor · Kokilaben Lab</div>
+                  </div>
+                  <div class="aside">PDF · 5 pages</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 14</div>
+                  <div class="icn"><span class="tag-dot life"></span></div>
+                  <div class="main">
+                    <div class="title">Sleep pattern shifted</div>
+                    <div class="meta">Average dropped from 7.2h → 5.8h · Fitbit</div>
+                  </div>
+                  <div class="aside">Auto-noted</div>
+                </div>
+
+                <div class="timeline-month">June 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jun 18</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">GAD-7 assessment</div>
+                    <div class="meta">Score: 9 (mild anxiety)</div>
+                  </div>
+                  <div class="aside">Self-added</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jun 04</div>
+                  <div class="icn"><span class="tag-dot imaging"></span></div>
+                  <div class="main">
+                    <div class="title">Chest X-ray</div>
+                    <div class="meta">Routine · No abnormalities</div>
+                  </div>
+                  <div class="aside">DICOM + PDF</div>
+                </div>
+
+                <div class="timeline-month">May 2026</div>
+                <div class="tl-entry">
+                  <div class="day">May 22</div>
+                  <div class="icn"><span class="tag-dot visit"></span></div>
+                  <div class="main">
+                    <div class="title">Dental — routine cleaning</div>
+                    <div class="meta">Dr. Mehta</div>
+                  </div>
+                  <div class="aside">Receipt</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 10 · CATEGORY VIEW (Mental Health)                    -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="records-mental">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink active" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><a data-goto="records">Records</a> <span class="muted"> / </span> <span class="this">Mental</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <div>
+                <h1 class="h1">Mental health</h1>
+                <p class="sub">Mood, therapy, journal, assessments — 8 entries in the last 3 months.</p>
+              </div>
+
+              <div class="mt-24"></div>
+
+              <div class="filter-bar">
+                <span class="chip" data-goto="records">All · 47</span>
+                <span class="chip">Medical · 22</span>
+                <span class="chip on">Mental · 8</span>
+                <span class="chip">Lifestyle · 14</span>
+                <span class="chip">Family · 3</span>
+                <div class="divider"></div>
+                <span class="chip">Last 3 months ▾</span>
+              </div>
+
+              <div class="mood-trend">
+                <div class="strong">Mood — last 30 days</div>
+                <div class="mood-graph">
+                  <div class="col" style="height:40%;"></div>
+                  <div class="col" style="height:55%;"></div>
+                  <div class="col" style="height:60%;"></div>
+                  <div class="col" style="height:35%;"></div>
+                  <div class="col" style="height:45%;"></div>
+                  <div class="col" style="height:50%;"></div>
+                  <div class="col" style="height:70%;"></div>
+                  <div class="col" style="height:65%;"></div>
+                  <div class="col" style="height:75%;"></div>
+                  <div class="col" style="height:60%;"></div>
+                  <div class="col" style="height:50%;"></div>
+                  <div class="col" style="height:80%;"></div>
+                  <div class="col" style="height:70%;"></div>
+                  <div class="col" style="height:85%;"></div>
+                  <div class="col" style="height:80%;"></div>
+                  <div class="col" style="height:75%;"></div>
+                  <div class="col" style="height:70%;"></div>
+                  <div class="col" style="height:60%;"></div>
+                  <div class="col" style="height:65%;"></div>
+                  <div class="col" style="height:75%;"></div>
+                </div>
+                <div class="small muted">Trending upward · 6 entries logged</div>
+              </div>
+
+              <div class="timeline">
+                <div class="timeline-month">August 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Aug 09</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">Journal entry</div>
+                    <div class="meta">"Feeling steadier this week..." · 3 min read</div>
+                  </div>
+                  <div class="aside">Self</div>
+                </div>
+
+                <div class="timeline-month">July 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jul 28</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">Therapy session</div>
+                    <div class="meta">Dr. Sameer Rao · Discussed sleep + work stress</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jul 14</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">Therapy session</div>
+                    <div class="meta">Dr. Sameer Rao</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+
+                <div class="timeline-month">June 2026</div>
+                <div class="tl-entry">
+                  <div class="day">Jun 18</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">GAD-7 anxiety assessment</div>
+                    <div class="meta">Score: 9 · Mild anxiety</div>
+                  </div>
+                  <div class="aside">Self-assessment</div>
+                </div>
+                <div class="tl-entry">
+                  <div class="day">Jun 02</div>
+                  <div class="icn"><span class="tag-dot mental"></span></div>
+                  <div class="main">
+                    <div class="title">Therapy session — first appointment</div>
+                    <div class="meta">Dr. Sameer Rao · Intake</div>
+                  </div>
+                  <div class="aside">Session note</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- CHAT                                                  -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="chat">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink active" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Chat</span> <span class="muted small" style="margin-left:12px;">· Answers based only on your records. Not medical advice.</span></div>
+              <div class="spacer"></div>
+              <div class="chip small">🌐 English ▾</div>
+              <div class="avatar" style="margin-left:12px;">P</div>
+            </div>
+            <div class="chat-body">
+              <div class="chat-messages">
+                <div class="chat-turn"><div class="bubble ai">
+                  Hi Priya. Ask me anything about your records. I'll always show you where the answer comes from.
+                </div></div>
+
+                <div class="chat-turn user"><div class="bubble user">
+                  When did I last have a blood test?
+                </div></div>
+
+                <div class="chat-turn"><div class="bubble ai">
+                  <span class="ref">📄 CBC — 12 Aug 2026</span>
+                  <span class="ref" style="margin-left:4px;">📄 Vitamin D panel — 20 Jul 2026</span>
+                  <div style="margin-top:8px;">Your most recent one was a Complete Blood Count at Metropolis Labs on <strong>12 August 2026</strong> (about a month ago). Before that, a Vitamin D and Thyroid panel on 20 July, ordered by Dr. Kapoor.</div>
+                </div></div>
+
+                <div class="chat-turn user"><div class="bubble user">
+                  Anything worth telling my doctor at Wednesday's follow-up?
+                </div></div>
+
+                <div class="chat-turn"><div class="bubble ai">
+                  A few things from your records that might be worth mentioning:
+                  <ul style="margin:8px 0 4px 18px;padding:0;">
+                    <li>Vitamin D was 18 ng/mL on Aug 12 — still below the healthy range even after supplementation</li>
+                    <li>Your sleep dropped from 7.2h → 5.8h average since mid-July</li>
+                    <li>You've had two therapy sessions since your last GP visit</li>
+                  </ul>
+                  Want me to prepare a one-page summary you can bring?
+                  <div style="margin-top:10px;"><button class="btn small primary" data-goto="summary">Prepare summary</button></div>
+                </div></div>
+              </div>
+              <div class="chat-composer">
+                <button class="btn ghost small">📎</button>
+                <button class="btn ghost small">🎤</button>
+                <div class="input">Ask about your records…</div>
+                <button class="btn primary small">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- INSIGHTS                                              -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="insights">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink active" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Insights</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <h1 class="h1">Trends worth noticing</h1>
+              <p class="sub">Patterns across your records. Not diagnoses.</p>
+
+              <div class="mt-24"></div>
+
+              <div class="insight-grid">
+                <div class="card insight-card">
+                  <div class="small muted">Vitamin D (ng/mL)</div>
+                  <div class="metric">18 <span class="small muted" style="font-weight:400;">↑ from 12</span></div>
+                  <div class="delta">Still below healthy range · 4 tests over 8 months</div>
+                  <div class="insight-graph">
+                    <div class="col" style="height:20%;"></div>
+                    <div class="col" style="height:32%;"></div>
+                    <div class="col" style="height:44%;"></div>
+                    <div class="col" style="height:60%;"></div>
+                  </div>
+                </div>
+                <div class="card insight-card">
+                  <div class="small muted">Sleep average</div>
+                  <div class="metric">5.8h <span class="small muted" style="font-weight:400;">↓ from 7.2h</span></div>
+                  <div class="delta">Dropped since mid-July · from Fitbit</div>
+                  <div class="insight-graph">
+                    <div class="col" style="height:80%;"></div>
+                    <div class="col" style="height:75%;"></div>
+                    <div class="col" style="height:60%;"></div>
+                    <div class="col" style="height:50%;"></div>
+                  </div>
+                </div>
+                <div class="card insight-card">
+                  <div class="small muted">Mood (self-reported)</div>
+                  <div class="metric">Trending up</div>
+                  <div class="delta">6 entries in the last 30 days</div>
+                  <div class="insight-graph">
+                    <div class="col" style="height:40%;"></div>
+                    <div class="col" style="height:55%;"></div>
+                    <div class="col" style="height:65%;"></div>
+                    <div class="col" style="height:80%;"></div>
+                  </div>
+                </div>
+                <div class="card insight-card">
+                  <div class="small muted">Active medications</div>
+                  <div class="metric">2</div>
+                  <div class="delta">Metformin (since Aug 2024) · Vitamin D3 (since Jul 2026)</div>
+                  <div class="insight-graph">
+                    <div class="col" style="height:70%;"></div>
+                    <div class="col" style="height:70%;"></div>
+                    <div class="col" style="height:80%;"></div>
+                    <div class="col" style="height:80%;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="card panel">
+                <div class="strong">Connections we noticed</div>
+                <p class="small muted" style="margin:4px 0 0;">You can dismiss any of these or turn them off.</p>
+                <div class="vstack mt-16">
+                  <div class="card" style="padding:12px 14px;">
+                    <div>Your sleep drop in mid-July overlaps with your GAD-7 anxiety score. Worth mentioning in therapy?</div>
+                    <div class="hstack mt-8"><button class="btn small">Discuss in chat</button><button class="btn small ghost">Dismiss</button></div>
+                  </div>
+                  <div class="card" style="padding:12px 14px;">
+                    <div>Vitamin D is rising but still below range. Follow-up test suggested by Dr. Kapoor was Oct 2026.</div>
+                    <div class="hstack mt-8"><button class="btn small">Set reminder</button><button class="btn small ghost">Dismiss</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- PROFILE / CARE TEAM                                   -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="profile">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink active" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Profile</span></div>
+              <div class="search" data-goto="search">Search everything…</div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <h1 class="h1">Priya Sharma</h1>
+              <p class="sub">34 · Mumbai · Managing your own records</p>
+
+              <div class="mt-24"></div>
+
+              <div class="card profile-section">
+                <div class="h3">Basics</div>
+                <div class="profile-row"><div class="k">Date of birth</div><div>14 March 1991</div><a class="small muted">Edit</a></div>
+                <div class="profile-row"><div class="k">Blood type</div><div>O+</div><a class="small muted">Edit</a></div>
+                <div class="profile-row"><div class="k">Allergies</div><div>Penicillin (severe)</div><a class="small muted">Edit</a></div>
+                <div class="profile-row"><div class="k">Emergency contact</div><div>Raj Sharma · +91 98••• •••23</div><a class="small muted">Edit</a></div>
+                <div class="profile-row"><div class="k">Preferred language</div><div>English + Hindi</div><a class="small muted">Change</a></div>
+              </div>
+
+              <div class="card profile-section">
+                <div class="h3">Care team</div>
+                <div class="care-list">
+                  <div class="care-item">
+                    <div class="care-avatar"></div>
+                    <div style="flex:1;">
+                      <div class="care-name">Dr. Ananya Kapoor</div>
+                      <div class="care-role">General physician · Kokilaben Hospital · 12 records shared</div>
+                    </div>
+                    <button class="btn small">Manage</button>
+                  </div>
+                  <div class="care-item">
+                    <div class="care-avatar"></div>
+                    <div style="flex:1;">
+                      <div class="care-name">Dr. Sameer Rao</div>
+                      <div class="care-role">Therapist · Private practice · 5 records shared</div>
+                    </div>
+                    <button class="btn small">Manage</button>
+                  </div>
+                  <div class="care-item">
+                    <div class="care-avatar"></div>
+                    <div style="flex:1;">
+                      <div class="care-name">Dr. Priya Mehta</div>
+                      <div class="care-role">Dentist · 1 record shared</div>
+                    </div>
+                    <button class="btn small">Manage</button>
+                  </div>
+                </div>
+                <button class="btn mt-16">+ Add someone</button>
+              </div>
+
+              <div class="card profile-section">
+                <div class="h3">Privacy &amp; sharing</div>
+                <div class="profile-row"><div class="k">Active shared links</div><div>2 links</div><a class="small muted" data-goto="share">Manage</a></div>
+                <div class="profile-row"><div class="k">Family view</div><div>Off</div><a class="small muted">Set up</a></div>
+                <div class="profile-row"><div class="k">Emergency card on lock screen</div><div>On</div><a class="small muted">Change</a></div>
+                <div class="profile-row"><div class="k">Data export</div><div>Everything · anytime</div><a class="small muted">Export</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 04 · ADD RECORD — CHOOSE SOURCE                       -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="add-source">
+        <div class="modal-wrap">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="strong">Add a record</div>
+              <a class="close" data-goto="home">✕</a>
+            </div>
+            <div class="modal-body">
+              <p class="small muted" style="margin:0 0 20px;">Where's it coming from? You can add anything — we'll figure out what it is.</p>
+
+              <div class="source-grid">
+                <div class="source-opt" data-goto="add-upload">
+                  <div class="ico"></div>
+                  <div class="name">Upload a file</div>
+                  <div class="hint">PDF, JPG, PNG · up to 20MB</div>
+                </div>
+                <div class="source-opt" data-goto="add-upload">
+                  <div class="ico"></div>
+                  <div class="name">Take a photo</div>
+                  <div class="hint">Snap a physical report or prescription</div>
+                </div>
+                <div class="source-opt">
+                  <div class="ico"></div>
+                  <div class="name">Type it out</div>
+                  <div class="hint">Symptoms, notes, a medication</div>
+                </div>
+                <div class="source-opt">
+                  <div class="ico"></div>
+                  <div class="name">Say it</div>
+                  <div class="hint">Voice — we'll transcribe</div>
+                </div>
+                <div class="source-opt">
+                  <div class="ico"></div>
+                  <div class="name">Connect a device</div>
+                  <div class="hint">Apple Health, Fitbit, Google Fit</div>
+                </div>
+                <div class="source-opt">
+                  <div class="ico"></div>
+                  <div class="name">Import from provider</div>
+                  <div class="hint">Kokilaben, Metropolis, Apollo…</div>
+                </div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="small muted">Adding for someone else? <a style="color:var(--accent);">Switch profile</a></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 05 · ADD — FILE SELECTED                              -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="add-upload">
+        <div class="modal-wrap">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="strong">Add a record — Upload</div>
+              <a class="close" data-goto="home">✕</a>
+            </div>
+            <div class="modal-body">
+              <div class="dropzone">
+                <div class="strong">Drop files here</div>
+                <div class="hint">or click to browse — PDF, JPG, PNG</div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="small muted" style="margin-bottom:8px;">Selected · 2 files</div>
+              <div class="file-row">
+                <div class="thumb"></div>
+                <div>
+                  <div class="strong">CBC_Metropolis_Aug12.pdf</div>
+                  <div class="small muted">Just now</div>
+                </div>
+                <div class="spacer"></div>
+                <div class="size">1.2 MB</div>
+                <a class="small muted">Remove</a>
+              </div>
+              <div class="file-row">
+                <div class="thumb"></div>
+                <div>
+                  <div class="strong">IMG_prescription_Aug05.jpg</div>
+                  <div class="small muted">Just now</div>
+                </div>
+                <div class="spacer"></div>
+                <div class="size">2.8 MB</div>
+                <a class="small muted">Remove</a>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="step">Step 1 of 3 · Upload</div>
+              <div>
+                <button class="btn" data-goto="add-source">Back</button>
+                <button class="btn primary" data-goto="processing">Read these →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 06 · PROCESSING                                       -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="processing">
+        <div class="modal-wrap">
+          <div class="modal" style="width:720px;">
+            <div class="modal-head">
+              <div class="strong">Reading your record…</div>
+              <a class="close" data-goto="home">✕</a>
+            </div>
+            <div class="modal-body">
+              <div class="processing-split">
+                <div>
+                  <div class="doc-preview">
+                    <span class="bar dark long"></span>
+                    <span class="bar med"></span>
+                    <span class="bar short"></span>
+                    <div style="height:8px;"></div>
+                    <span class="bar long"></span>
+                    <span class="bar long"></span>
+                    <span class="bar med"></span>
+                    <span class="bar long"></span>
+                    <span class="bar short"></span>
+                    <div style="height:8px;"></div>
+                    <span class="bar dark med"></span>
+                    <span class="bar long"></span>
+                    <span class="bar long"></span>
+                  </div>
+                  <div class="small muted mt-8" style="text-align:center;">CBC_Metropolis_Aug12.pdf</div>
+                </div>
+
+                <div>
+                  <div class="extract-status"><span class="dot"></span> Understanding this document…</div>
+                  <div class="extraction-list">
+                    <div class="extract-item">
+                      <div class="k">Looks like</div>
+                      <div class="v">Blood test — Complete Blood Count</div>
+                    </div>
+                    <div class="extract-item">
+                      <div class="k">Source</div>
+                      <div class="v">Metropolis Healthcare</div>
+                    </div>
+                    <div class="extract-item">
+                      <div class="k">Date on document</div>
+                      <div class="v">12 August 2026</div>
+                    </div>
+                    <div class="extract-item">
+                      <div class="k">Ordered by</div>
+                      <div class="v">Dr. A. Kapoor</div>
+                    </div>
+                    <div class="extract-item">
+                      <div class="k">Values found</div>
+                      <div class="v">14 markers · 3 flagged</div>
+                    </div>
+                    <div class="extract-item pending">
+                      <div class="k">Suggested category</div>
+                      <div class="v">Medical → Lab report</div>
+                    </div>
+                  </div>
+                  <p class="small muted mt-16">You'll get to check and correct everything on the next screen.</p>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="step">Step 2 of 3 · Reading</div>
+              <button class="btn primary" data-goto="confirm">Continue →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 07 · CONFIRM + CONTEXT QUESTIONS                      -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="confirm">
+        <div class="modal-wrap">
+          <div class="modal" style="width:680px;">
+            <div class="modal-head">
+              <div class="strong">Does this look right?</div>
+              <a class="close" data-goto="home">✕</a>
+            </div>
+            <div class="modal-body" style="max-height:520px;overflow-y:auto;">
+              <div class="confirm-header">
+                <div class="badge">Lab report</div>
+                <div>
+                  <div class="strong">Complete blood count (CBC)</div>
+                  <div class="small muted">Metropolis Healthcare · 12 August 2026 · Ordered by Dr. Kapoor</div>
+                </div>
+              </div>
+
+              <div class="h3">What we found</div>
+              <div class="confirm-fields">
+                <div class="confirm-field"><div class="k">Type</div><div>Lab report — CBC</div><a class="edit">Change</a></div>
+                <div class="confirm-field"><div class="k">Source</div><div>Metropolis Healthcare</div><a class="edit">Edit</a></div>
+                <div class="confirm-field"><div class="k">Date</div><div>12 August 2026</div><a class="edit">Edit</a></div>
+                <div class="confirm-field"><div class="k">Ordered by</div><div>Dr. Ananya Kapoor</div><a class="edit">Edit</a></div>
+                <div class="confirm-field"><div class="k">Whose record</div><div>Priya (me)</div><a class="edit">Change</a></div>
+              </div>
+
+              <div class="h3">A few optional questions — helps future you</div>
+
+              <div class="context-q">
+                <div class="q">Was this part of a routine check-up, or was something wrong?</div>
+                <div class="opts">
+                  <span class="chip">Routine</span>
+                  <span class="chip on">Follow-up on a symptom</span>
+                  <span class="chip">Something else</span>
+                  <span class="chip">Skip</span>
+                </div>
+              </div>
+
+              <div class="context-q">
+                <div class="q">What were you experiencing at the time? (optional)</div>
+                <div class="input" style="height:auto;padding:8px 12px;color:var(--faint);border:1px solid var(--border);border-radius:4px;font-size:13px;">Fatigue, low energy — you can leave this blank</div>
+              </div>
+
+              <div class="context-q">
+                <div class="q">Anything you want to remember about this?</div>
+                <div class="opts">
+                  <span class="chip">Add note</span>
+                  <span class="chip">Attach a photo</span>
+                  <span class="chip">Link a related record</span>
+                </div>
+                <div class="context-note">Skipping is fine — you can always add context later.</div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="step">Step 3 of 3 · Confirm</div>
+              <div>
+                <button class="btn" data-goto="processing">Back</button>
+                <button class="btn primary" data-goto="detail" data-toast="Saved to your records">Save record</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 08 · RECORD DETAIL                                    -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="detail">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink active" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><a data-goto="records">Records</a> <span class="muted"> / </span> <span class="this">Complete blood count · 12 Aug 2026</span></div>
+              <div class="spacer"></div>
+              <button class="btn small" data-goto="language">🌐 English</button>
+              <button class="btn small" data-goto="share">Share</button>
+            </div>
+            <div class="pbody">
+              <div class="detail-head">
+                <div class="hstack" style="gap:12px;">
+                  <span class="chip tag">Lab report</span>
+                  <h1 class="h1" style="margin:0;">Complete blood count (CBC)</h1>
+                </div>
+                <div class="meta">
+                  <span>📅 12 August 2026</span>
+                  <span>🏥 Metropolis Healthcare</span>
+                  <span>👤 Ordered by Dr. Kapoor</span>
+                  <span>🔗 Linked to annual check-up</span>
+                </div>
+              </div>
+
+              <div class="detail-toggle">
+                <div class="seg on">In plain English</div>
+                <div class="seg">Clinical view</div>
+                <div class="seg">Original document</div>
+              </div>
+
+              <div class="detail-grid">
+                <div>
+                  <div class="detail-value">
+                    <div>
+                      <div class="name">Hemoglobin</div>
+                      <div class="expl">Carries oxygen through your blood. Yours is a bit low — often linked to iron levels or recent tiredness.</div>
+                    </div>
+                    <div class="num">11.2 <span class="small muted">g/dL</span></div>
+                    <div class="flag high">Low</div>
+                  </div>
+                  <div class="detail-value">
+                    <div>
+                      <div class="name">White blood cells</div>
+                      <div class="expl">Your immune system's front line. In the normal range.</div>
+                    </div>
+                    <div class="num">7,200 <span class="small muted">/µL</span></div>
+                    <div class="flag ok">OK</div>
+                  </div>
+                  <div class="detail-value">
+                    <div>
+                      <div class="name">Platelets</div>
+                      <div class="expl">Help your blood clot. Normal.</div>
+                    </div>
+                    <div class="num">240,000 <span class="small muted">/µL</span></div>
+                    <div class="flag ok">OK</div>
+                  </div>
+                  <div class="detail-value">
+                    <div>
+                      <div class="name">Vitamin D</div>
+                      <div class="expl">Low. Below the healthy range (30–100). Common in India — often addressed with supplements + sun.</div>
+                    </div>
+                    <div class="num">18 <span class="small muted">ng/mL</span></div>
+                    <div class="flag high">Low</div>
+                  </div>
+                  <div class="mt-16 small muted">+ 10 other markers · <a style="color:var(--accent);">show all</a></div>
+
+                  <div class="mt-24"></div>
+                  <div class="h3">Notes</div>
+                  <div class="card panel" style="padding:12px 14px;">
+                    <div class="small">You told us: <em>"Feeling tired, wanted to check iron"</em></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="h3">Original</div>
+                  <div class="doc-preview" style="aspect-ratio:auto;height:220px;">
+                    <span class="bar dark long"></span>
+                    <span class="bar med"></span>
+                    <span class="bar short"></span>
+                    <span class="bar long"></span>
+                    <span class="bar long"></span>
+                    <span class="bar med"></span>
+                  </div>
+                  <button class="btn small block mt-8">Open PDF</button>
+
+                  <div class="mt-24"></div>
+                  <div class="h3">Related</div>
+                  <div class="vstack">
+                    <div class="card" style="padding:10px 12px;font-size:12.5px;">
+                      <div class="strong small">Annual check-up</div>
+                      <div class="muted small">20 Jul 2026 · linked</div>
+                    </div>
+                    <div class="card" style="padding:10px 12px;font-size:12.5px;">
+                      <div class="strong small">Vitamin D — previous</div>
+                      <div class="muted small">20 Jul 2026 · comparable</div>
+                    </div>
+                    <div class="card" style="padding:10px 12px;font-size:12.5px;">
+                      <div class="strong small">Prescription — Vit D3</div>
+                      <div class="muted small">05 Aug 2026 · resulted in</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 11 · SEARCH                                           -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="search">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink active" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Search</span></div>
+              <div class="spacer"></div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <div class="search-input">When did I last take antibiotics?</div>
+              <div class="search-hint">Ask a question, or search by term, date, or doctor.</div>
+
+              <div class="search-answer">
+                <div class="a-label">Answer from your records</div>
+                <div>You last took antibiotics in <strong>February 2025</strong> — a 5-day course of Amoxicillin prescribed by Dr. Kapoor for a throat infection. Nothing since.</div>
+              </div>
+
+              <div class="search-results-head">3 related records</div>
+              <div class="card" style="padding:6px 16px;">
+                <div class="recent-row">
+                  <div class="date">14 Feb 25</div>
+                  <div class="type"><span class="tag-dot med"></span> Prescription</div>
+                  <div class="desc">Amoxicillin 500mg — 5 days</div>
+                  <div class="src">Dr. Kapoor</div>
+                </div>
+                <div class="recent-row">
+                  <div class="date">14 Feb 25</div>
+                  <div class="type"><span class="tag-dot visit"></span> Doctor visit</div>
+                  <div class="desc">Throat infection — sore throat + fever</div>
+                  <div class="src">Kokilaben</div>
+                </div>
+                <div class="recent-row">
+                  <div class="date">28 Feb 25</div>
+                  <div class="type"><span class="tag-dot event"></span> You noted</div>
+                  <div class="desc">"Feeling better, finished course"</div>
+                  <div class="src">Self</div>
+                </div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="h3">Try asking</div>
+              <div class="filter-bar">
+                <span class="chip">What's my current medication list?</span>
+                <span class="chip">Show all my lab tests from 2024</span>
+                <span class="chip">Any therapy sessions this month?</span>
+                <span class="chip">When did I last see Dr. Kapoor?</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 14 · LANGUAGE / PLAIN LANGUAGE                        -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="language">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink active" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><a data-goto="records">Records</a> <span class="muted"> / </span> <a data-goto="detail">CBC · 12 Aug</a> <span class="muted"> / </span> <span class="this">Read differently</span></div>
+              <div class="spacer"></div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <h1 class="h1">Read this in a way that works for you</h1>
+              <p class="sub">Change the language and the level of detail. The original stays untouched.</p>
+
+              <div class="mt-24"></div>
+
+              <div class="hstack" style="gap:20px;flex-wrap:wrap;">
+                <div>
+                  <div class="h3">Language</div>
+                  <div class="lang-toggle">
+                    <div class="seg on">English</div>
+                    <div class="seg">हिन्दी</div>
+                    <div class="seg">मराठी</div>
+                    <div class="seg">+</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="h3">Detail level</div>
+                  <div class="lang-toggle">
+                    <div class="seg">Clinical</div>
+                    <div class="seg on">Plain language</div>
+                    <div class="seg">Very simple</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="parallel mt-24">
+                <div class="col">
+                  <div class="col-head">Original — as written by the lab</div>
+                  <div class="term-line">
+                    <div class="term">Hemoglobin: 11.2 g/dL (ref: 12.0–15.5)</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Serum 25(OH)D: 18 ng/mL (ref: 30–100)</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">MCV: 82 fL (ref: 80–100)</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Impression: Mild anemia with vitamin D insufficiency. Suggest supplementation.</div>
+                  </div>
+                  <div class="small muted mt-16">Kept exactly as your doctor and the lab wrote it. Never rewritten.</div>
+                </div>
+                <div class="col" style="background:var(--accent-soft);border-color:transparent;">
+                  <div class="col-head" style="color:var(--accent);">Plain language — for you</div>
+                  <div class="term-line">
+                    <div class="term">Hemoglobin is a bit low</div>
+                    <div class="expl">Hemoglobin carries oxygen. Yours (11.2) is slightly below the healthy range (12–15.5). Often linked to iron levels or feeling tired.</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Vitamin D is low</div>
+                    <div class="expl">Yours is 18 — the healthy range starts at 30. Common in India. Usually addressed with a supplement + more sunlight.</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">Red blood cell size is normal</div>
+                    <div class="expl">MCV measures the size of your red blood cells. Yours is in the normal range — good sign.</div>
+                  </div>
+                  <div class="term-line">
+                    <div class="term">The lab's summary</div>
+                    <div class="expl">"Mild anemia" (slightly low blood) and vitamin D insufficiency. They recommend a supplement.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="card panel">
+                <div class="hstack">
+                  <div>
+                    <div class="strong">Not sure what to do next?</div>
+                    <div class="small muted">This isn't medical advice — but you can bring these values to Dr. Kapoor on Wednesday.</div>
+                  </div>
+                  <div class="spacer"></div>
+                  <button class="btn small" data-goto="chat">Ask about this</button>
+                  <button class="btn small primary" data-goto="summary">Add to summary</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 12 · SUMMARY GENERATION                               -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="summary">
+        <div class="pshell">
+          <nav class="pnav">
+            <div class="logo"><span class="brand">◈</span> Health OS</div>
+            <div class="plink" data-goto="home"><span class="ico"></span>Home</div>
+            <div class="plink" data-goto="records"><span class="ico"></span>Records</div>
+            <div class="plink" data-goto="chat"><span class="ico"></span>Chat</div>
+            <div class="plink" data-goto="insights"><span class="ico"></span>Insights</div>
+            <div class="divider"></div>
+            <div class="plink" data-goto="profile"><span class="ico"></span>Profile</div>
+            <div class="foot">Priya · Free plan</div>
+          </nav>
+          <div class="pmain">
+            <div class="pbar">
+              <div class="crumb"><span class="this">Generate a summary</span></div>
+              <div class="spacer"></div>
+              <div class="avatar">P</div>
+            </div>
+            <div class="pbody">
+              <h1 class="h1">Generate a summary</h1>
+              <p class="sub">Pick who it's for. We'll pull only what matters for that purpose.</p>
+
+              <div class="mt-24"></div>
+
+              <div class="summary-wizard">
+                <div class="wizard-steps">
+                  <div class="wizard-step done"><span class="num">01</span>Who is it for?</div>
+                  <div class="wizard-step on"><span class="num">02</span>What to include</div>
+                  <div class="wizard-step"><span class="num">03</span>Review</div>
+                  <div class="wizard-step"><span class="num">04</span>Share or download</div>
+                </div>
+
+                <div>
+                  <div class="h3">Who's this for?</div>
+                  <div class="purpose-grid">
+                    <div class="purpose-opt on">
+                      <div class="name">A new doctor</div>
+                      <div class="hint">1-page history · conditions, meds, allergies, recent labs</div>
+                    </div>
+                    <div class="purpose-opt">
+                      <div class="name">Emergency / hospital visit</div>
+                      <div class="hint">Blood type, allergies, current meds, emergency contact — first</div>
+                    </div>
+                    <div class="purpose-opt">
+                      <div class="name">Just for me</div>
+                      <div class="hint">Full personal overview across all categories</div>
+                    </div>
+                    <div class="purpose-opt">
+                      <div class="name">Custom</div>
+                      <div class="hint">Pick your own sections and time range</div>
+                    </div>
+                  </div>
+
+                  <div class="mt-24"></div>
+                  <div class="h3">Time range</div>
+                  <div class="filter-bar">
+                    <span class="chip">All time</span>
+                    <span class="chip">Last 5 years</span>
+                    <span class="chip on">Last 2 years</span>
+                    <span class="chip">Last 6 months</span>
+                    <span class="chip">Custom…</span>
+                  </div>
+
+                  <div class="mt-24"></div>
+                  <div class="h3">Preview</div>
+                  <div class="sum-preview">
+                    <h4>Summary for a new doctor · Priya Sharma, 34</h4>
+                    <p><strong>Blood type:</strong> O+ · <strong>Allergies:</strong> Penicillin (severe)</p>
+
+                    <h4>Active conditions &amp; medications</h4>
+                    <ul>
+                      <li>Type 2 diabetes (Aug 2024) — Metformin 500mg daily</li>
+                      <li>Vitamin D deficiency (Jul 2026) — Vitamin D3, weekly</li>
+                    </ul>
+
+                    <h4>Recent labs</h4>
+                    <ul>
+                      <li>CBC — 12 Aug 2026: hemoglobin low (11.2), vitamin D low (18)</li>
+                      <li>Thyroid + lipid panel — 20 Jul 2026: within range</li>
+                    </ul>
+
+                    <h4>Recent visits</h4>
+                    <ul>
+                      <li>Annual check-up — 20 Jul 2026 (Dr. Kapoor, Kokilaben)</li>
+                      <li>Ongoing therapy — since Jun 2026 (Dr. Rao)</li>
+                    </ul>
+
+                    <h4>Trends worth noting</h4>
+                    <ul>
+                      <li>Sleep average dropped from 7.2h → 5.8h since mid-July</li>
+                      <li>Vitamin D rising with supplementation but still below range</li>
+                    </ul>
+
+                    <p class="small muted" style="margin-top:12px;">Generated from 24 of 47 records. Does not include therapy session notes (marked private) — you can add them if needed.</p>
+                  </div>
+
+                  <div class="mt-24 hstack">
+                    <button class="btn">← Back</button>
+                    <div class="spacer"></div>
+                    <button class="btn">Regenerate</button>
+                    <button class="btn primary" data-goto="share">Share this →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- 13 · SHARE                                            -->
+      <!-- ==================================================== -->
+      <section class="screen" data-screen="share">
+        <div class="modal-wrap" style="background:rgba(20,20,20,0.35);">
+          <div class="modal" style="width:640px;">
+            <div class="modal-head">
+              <div class="strong">Share your summary</div>
+              <a class="close" data-goto="home">✕</a>
+            </div>
+            <div class="modal-body">
+              <p class="small muted" style="margin:0 0 16px;">Priya's summary for a new doctor · 1 page · Last 2 years</p>
+
+              <div class="h3">How should they see it?</div>
+              <div class="share-methods">
+                <div class="share-method on">
+                  <div class="ico"></div>
+                  <div class="name">Link</div>
+                  <div class="hint">Share via email, WhatsApp</div>
+                </div>
+                <div class="share-method">
+                  <div class="ico"></div>
+                  <div class="name">QR code</div>
+                  <div class="hint">Show in person</div>
+                </div>
+                <div class="share-method">
+                  <div class="ico"></div>
+                  <div class="name">Download PDF</div>
+                  <div class="hint">Save or print</div>
+                </div>
+              </div>
+
+              <div class="share-link">
+                <span>healthos.app/s/priya-a4f9e2 · read-only</span>
+                <button class="btn small">Copy</button>
+              </div>
+
+              <div class="share-scope">
+                <div class="strong">What's included</div>
+                <div class="scope-row on"><span class="box"></span>Basics: name, age, blood type, allergies</div>
+                <div class="scope-row on"><span class="box"></span>Active medications</div>
+                <div class="scope-row on"><span class="box"></span>Diagnoses &amp; conditions</div>
+                <div class="scope-row on"><span class="box"></span>Recent labs (last 2 years)</div>
+                <div class="scope-row"><span class="box"></span>Therapy notes (kept private by default)</div>
+                <div class="scope-row"><span class="box"></span>Family history</div>
+              </div>
+
+              <div class="mt-24"></div>
+              <div class="card panel">
+                <div class="h3" style="margin:0 0 10px;">Access</div>
+                <div class="hstack" style="margin-bottom:10px;">
+                  <div style="min-width:120px;" class="small muted">Expires in</div>
+                  <div class="hstack" style="flex:1;">
+                    <span class="chip">24 hours</span>
+                    <span class="chip on">7 days</span>
+                    <span class="chip">30 days</span>
+                    <span class="chip">Never</span>
+                  </div>
+                </div>
+                <div class="hstack" style="margin-bottom:10px;">
+                  <div style="min-width:120px;" class="small muted">Passcode</div>
+                  <div>Off · <a class="small" style="color:var(--accent);">Add one</a></div>
+                </div>
+                <div class="hstack">
+                  <div style="min-width:120px;" class="small muted">Notify me when</div>
+                  <div class="small">Someone opens the link</div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <div class="small muted">You can revoke this any time from Profile → Sharing.</div>
+              <button class="btn primary" data-goto="home" data-toast="Link ready — copied to clipboard">Create link</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+    </div><!-- /frame -->
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  const screens = document.querySelectorAll('.screen');
+  const navLinks = document.querySelectorAll('.dev-nav a[data-goto]');
+
+  function goto(id, toastMsg) {
+    screens.forEach(s => s.classList.toggle('active', s.dataset.screen === id));
+    navLinks.forEach(a => a.classList.toggle('active', a.dataset.goto === id));
+    window.scrollTo(0, 0);
+    // scroll the frame body to top too
+    document.querySelectorAll('.pbody, .modal-body').forEach(el => el.scrollTop = 0);
+    if (toastMsg) showToast(toastMsg);
+    // set hash for shareable links
+    history.replaceState(null, '', '#' + id);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // any element with data-goto acts as a nav trigger
+  document.body.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-goto]');
+    if (!el) return;
+    e.preventDefault();
+    goto(el.dataset.goto, el.dataset.toast);
+  });
+
+  // deep link support
+  const initial = window.location.hash.replace('#', '');
+  if (initial && document.querySelector(`.screen[data-screen="${initial}"]`)) {
+    goto(initial);
+  }
+})();
+</script>
+
+</body>
+</html>
