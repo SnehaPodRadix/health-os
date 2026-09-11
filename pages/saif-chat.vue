@@ -1,38 +1,48 @@
 <script setup lang="ts">
 /**
- * saif-chat.vue — Health chat (Gemini) + offline demo fallback. Served at /chat.
+ * saif-chat.vue — Sage, the Health OS chat. Served at /chat.
  *
- * OWNED BY: Saif. Self-contained so it doesn't collide with other work in
- * progress. Everything is namespaced with `saif` (state key, action fns).
+ * OWNED BY: Saif. Namespaced with `saif` so it doesn't collide with other work.
  *
- * This is ONLY the chat. The health report is uploaded by a separate feature;
- * when we merge, that feature just sets `saifState.value.report` and the chat
- * automatically passes it to Gemini as context (via /api/saif-chat).
+ * What it does:
+ *  - CONTEXT: automatically reads the user's saved medical records (useRecords)
+ *    and passes them to Gemini, so Sage answers grounded in the real reports.
+ *    A manually pasted report (clip button) is added on top as extra context.
+ *  - VOICE: a mic button uses the browser Speech API to transcribe speech into
+ *    the input box. It only fills the box — the user still presses Send.
+ *  - GUARDRAILS: a standing Sage disclaimer, plus deterministic intercepts for
+ *    emergencies and requests for diagnosis/prescriptions (no API call needed).
  *
- * The Gemini call runs server-side (POST /api/saif-chat) using the shared secret
- * key (GEMINI_API_KEY), so the key is never exposed to the browser. If that call
- * fails / times out / has no key, we fall back to a canned "Demo mode" so a live
- * demo never breaks.
+ * The Gemini call runs server-side (POST /api/saif-chat) with the shared secret
+ * key, and falls back to a canned "Demo mode" reply if it fails/times out.
  */
 
 // Served at /chat (file stays saif-prefixed to avoid clashing with the other dev).
 definePageMeta({ alias: ['/chat'] });
 
 // ---- config -----------------------------------------------------------------
-// Snappy mode: the demo key can queue 20-50s, so wait only briefly for a real
-// answer, then fall back to the instant demo reply. Raise this once a fast key
-// is in place if you'd rather always wait for the live response.
+// Snappy mode: wait only briefly for a real answer, then fall back to the demo.
 const SAIF_GEMINI_TIMEOUT_MS = 7000;
+
+// The exact Sage guardrail line — shown as the standing disclaimer AND as the
+// reply when someone asks Sage to diagnose or prescribe.
+const SAIF_SAGE_DISCLAIMER =
+  'Sage reads your medical records and gives you what matters, when it matters. Sage is not a medical practitioner and is not authorized to dispense medical advice.';
+
+const SAIF_EMERGENCY_MSG =
+  'This sounds like it may be urgent. Please contact your local emergency services or go to the nearest emergency room right now. Sage can’t help with medical emergencies.';
 
 // ---- types ------------------------------------------------------------------
 type SaifRole = 'user' | 'assistant';
+type SaifKind = 'normal' | 'guard' | 'emergency';
 interface SaifMessage {
   role: SaifRole;
   text: string;
-  demo?: boolean; // true if this reply came from the offline fallback
+  demo?: boolean; // reply came from the offline fallback
+  kind?: SaifKind; // guardrail styling
 }
 interface SaifChatState {
-  report: string; // MERGE HOOK: upload feature sets this; empty for now.
+  report: string; // manually pasted report (extra context on top of records)
   messages: SaifMessage[];
   mode: 'live' | 'demo';
   sending: boolean;
@@ -42,15 +52,56 @@ interface SaifChatState {
 const saifState = useState<SaifChatState>('saif-chat-state', () => ({
   report: '',
   messages: [],
-  mode: 'live', // optimistic; flips to 'demo' if the server call fails
+  mode: 'live',
   sending: false,
 }));
 
 const saifDraft = ref('');
 const saifScroller = ref<HTMLElement | null>(null);
-const saifHasReport = computed(() => saifState.value.report.trim().length > 0);
 
-// Paperclip → paste-report panel.
+// ---- medical-records context (Sneha's upload feature feeds this) ------------
+const { records } = useRecords();
+const saifRecordCount = computed(() => (records.value || []).length);
+
+// Compact, token-friendly view of every saved record: title, date, summary,
+// and each finding with its flag. Full OCR text is only used when a record has
+// no structured findings.
+const saifRecordsContext = computed(() => {
+  const recs = records.value || [];
+  if (!recs.length) return '';
+  const blocks = recs.slice(0, 25).map((r) => {
+    const head = [r.title || r.type || 'Record', r.date ? `(${r.date})` : '', r.category ? `· ${r.category}` : '']
+      .filter(Boolean)
+      .join(' ');
+    const lines = [`# ${head}`];
+    if (r.summary) lines.push(r.summary);
+    if (r.orderedBy) lines.push(`Ordered by: ${r.orderedBy}${r.doctorRole ? ` (${r.doctorRole})` : ''}`);
+    if (r.findings?.length) {
+      for (const f of r.findings) {
+        const flag = f.flag && f.flag !== 'normal' ? ` [${f.flag.toUpperCase()}]` : '';
+        lines.push(`- ${f.name}: ${f.value}${flag}${f.explanation ? ` — ${f.explanation}` : ''}`);
+      }
+    } else if (r.text) {
+      lines.push(r.text.slice(0, 400));
+    }
+    return lines.join('\n');
+  });
+  let out = blocks.join('\n\n');
+  if (out.length > 7000) out = `${out.slice(0, 7000)}\n…(truncated)`;
+  return out;
+});
+
+// Records context + any manually pasted report → the single context string.
+const saifContext = computed(() => {
+  const parts: string[] = [];
+  if (saifRecordsContext.value) parts.push(saifRecordsContext.value);
+  const manual = saifState.value.report.trim();
+  if (manual) parts.push(`Additional report pasted by the user:\n${manual}`);
+  return parts.join('\n\n');
+});
+const saifHasManualReport = computed(() => saifState.value.report.trim().length > 0);
+
+// Paperclip → paste-report panel (optional extra context).
 const saifShowAttach = ref(false);
 const saifReportDraft = ref('');
 function saifToggleAttach() {
@@ -68,35 +119,56 @@ function saifClearReport() {
 }
 
 // Seed a greeting on first load.
+const SAIF_GREETING =
+  'Hi, I’m Sage. I read your medical records and help you understand what matters. Ask me about any result and I’ll point you to the exact number and what it means. I’m not a doctor and can’t give medical advice.';
 if (saifState.value.messages.length === 0) {
-  saifState.value.messages.push({
-    role: 'assistant',
-    text: "Hi! I'm your Health OS assistant. Ask me anything about your health or your reports. I'm an AI guide, not a substitute for your doctor.",
-    demo: saifState.value.mode === 'demo',
-  });
+  saifState.value.messages.push({ role: 'assistant', text: SAIF_GREETING });
 }
+
+// ---- guardrails -------------------------------------------------------------
+// Deterministic, client-side checks that run BEFORE any API call so the guard
+// message is instant and never depends on the model.
+const SAIF_GUARD_EMERGENCY =
+  /\b(chest pain|can'?t breathe|cannot breathe|trouble breathing|difficulty breathing|heart attack|stroke|suicid|kill myself|end my life|overdos|unconscious|passed out|severe bleeding|bleeding heavily)\b/i;
+const SAIF_GUARD_ADVICE =
+  /\b(diagnos(e|is|ed)?|prescrib(e|ing|tion)?|what (medicine|medication|drug|dose|dosage|pills?) (should|do|can)|(should|can) i (take|stop|start|change|increase|lower) (my |the |a )?(med|medicine|medication|drug|dose|pill|tablet|supplement|treatment|dosage))\b/i;
 
 // ---- actions ----------------------------------------------------------------
 async function saifSend() {
   const text = saifDraft.value.trim();
   if (!text || saifState.value.sending) return;
 
+  if (saifListening.value) saifStopMic(); // don't keep the mic hot after send
+
   saifState.value.messages.push({ role: 'user', text });
   saifDraft.value = '';
+  saifScrollToBottom();
+
+  // Guardrails first — instant, no network.
+  if (SAIF_GUARD_EMERGENCY.test(text)) {
+    saifState.value.messages.push({ role: 'assistant', kind: 'emergency', text: SAIF_EMERGENCY_MSG });
+    saifScrollToBottom();
+    return;
+  }
+  if (SAIF_GUARD_ADVICE.test(text)) {
+    saifState.value.messages.push({ role: 'assistant', kind: 'guard', text: SAIF_SAGE_DISCLAIMER });
+    saifScrollToBottom();
+    return;
+  }
+
   saifState.value.sending = true;
   saifScrollToBottom();
 
   let reply: string;
   let usedDemo: boolean;
 
-  // Always try live via the server route — don't stay stuck in demo. The mode
-  // badge reflects the LAST attempt, so a single good reply flips it back to live.
+  // Always try live via the server route. The mode badge reflects the LAST
+  // attempt, so a single good reply flips it back to live.
   try {
     reply = await saifCallGemini();
     saifState.value.mode = 'live';
     usedDemo = false;
   } catch (err) {
-    // Timeout / quota (429) / no key / network → demo reply for THIS message.
     console.warn('[saif-chat] chat API failed, using demo reply:', err);
     saifState.value.mode = 'demo';
     usedDemo = true;
@@ -115,11 +187,77 @@ function saifRetryLive() {
 function saifResetChat() {
   saifState.value.messages = [];
   saifState.value.mode = 'live';
-  saifState.value.messages.push({
-    role: 'assistant',
-    text: "Hi! I'm your Health OS assistant. Ask me anything about your health or your reports. I'm an AI guide, not a substitute for your doctor.",
-    demo: false,
-  });
+  saifState.value.messages.push({ role: 'assistant', text: SAIF_GREETING });
+}
+
+// ---- voice input (browser Speech API → fills the box, never auto-sends) ------
+const saifMicSupported = ref(false);
+const saifListening = ref(false);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let saifRecognition: any = null;
+let saifMicBase = ''; // text already in the box when recording started
+
+onMounted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  if (!SR) return; // Safari/Firefox without support → mic button hidden
+  saifMicSupported.value = true;
+  const rec = new SR();
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.lang = 'en-US';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rec.onresult = (e: any) => {
+    let finalText = '';
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t;
+      else interim += t;
+    }
+    if (finalText) saifMicBase = `${saifMicBase} ${finalText}`.trim();
+    saifDraft.value = `${saifMicBase} ${interim}`.trim();
+  };
+  rec.onend = () => {
+    saifListening.value = false;
+  };
+  rec.onerror = () => {
+    saifListening.value = false;
+  };
+  saifRecognition = rec;
+});
+
+onBeforeUnmount(() => {
+  try {
+    saifRecognition?.stop();
+  } catch {
+    /* ignore */
+  }
+});
+
+function saifStopMic() {
+  if (!saifRecognition) return;
+  try {
+    saifRecognition.stop();
+  } catch {
+    /* ignore */
+  }
+  saifListening.value = false;
+}
+function saifToggleMic() {
+  if (!saifRecognition) return;
+  if (saifListening.value) {
+    saifStopMic();
+    return;
+  }
+  saifMicBase = saifDraft.value.trim();
+  try {
+    saifRecognition.start();
+    saifListening.value = true;
+  } catch {
+    // start() throws if it's already running — just reflect the state.
+    saifListening.value = true;
+  }
 }
 
 // ---- Gemini call (via server route, key stays server-side) ------------------
@@ -134,10 +272,10 @@ async function saifCallGemini(): Promise<string> {
   try {
     const res = await $fetch<SaifChatResponse>('/api/saif-chat', {
       method: 'POST',
-      timeout: SAIF_GEMINI_TIMEOUT_MS, // aborts slow calls → demo fallback
+      timeout: SAIF_GEMINI_TIMEOUT_MS,
       body: {
         messages: saifState.value.messages.map((m) => ({ role: m.role, text: m.text })),
-        report: saifState.value.report,
+        report: saifContext.value,
       },
     });
     saifRecordUsage({
@@ -164,7 +302,6 @@ async function saifCallGemini(): Promise<string> {
 }
 
 // Log one live API call to localStorage so /usage can show real numbers.
-// (Google doesn't expose per-key usage via the API key, so we track it here.)
 interface SaifUsageEntry {
   ts: number;
   model?: string;
@@ -189,12 +326,11 @@ function saifRecordUsage(partial: Omit<SaifUsageEntry, 'ts'>) {
 }
 
 // ---- offline demo fallback (pre-defined replies) ----------------------------
-// Keyword-matched canned answers so the demo works with no API. First match wins.
 const SAIF_DEMO_RULES: { match: RegExp; reply: string }[] = [
   {
     match: /\b(hi|hello|hey|start|begin)\b/i,
     reply:
-      "Hi! I'm your Health OS assistant. I can walk you through your report, explain what the numbers mean, and flag anything worth a closer look. What would you like to start with? (Demo response.)",
+      "Hi! I'm Sage. I can walk you through your report, explain what the numbers mean, and flag anything worth a closer look. What would you like to start with? (Demo response.)",
   },
   {
     match: /\b(cholesterol|lipid|ldl|hdl|triglyceride)\b/i,
@@ -273,10 +409,26 @@ function saifOnComposerKey(e: KeyboardEvent) {
   <AppTopbar crumb="Chat" />
 
   <div class="chat-note-row">
-    <span class="note-text">Answers are AI-guided · not a substitute for professional care.</span>
+    <span class="note-text">
+      <template v-if="saifRecordCount">
+        Grounded in {{ saifRecordCount }} saved record{{ saifRecordCount === 1 ? '' : 's' }} ·
+        <NuxtLink to="/records" class="note-link">manage</NuxtLink>
+      </template>
+      <template v-else>
+        No records yet · <NuxtLink to="/records" class="note-link">add one</NuxtLink> so Sage can use them
+      </template>
+    </span>
     <span class="chat-mode" :class="saifState.mode">
       <span class="dot" />{{ saifState.mode === 'live' ? 'Live · Gemini' : 'Demo mode' }}
     </span>
+  </div>
+
+  <!-- standing guardrail / disclaimer -->
+  <div class="sage-guard">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+    <span>{{ SAIF_SAGE_DISCLAIMER }}</span>
   </div>
 
   <div class="chat-body">
@@ -293,8 +445,13 @@ function saifOnComposerKey(e: KeyboardEvent) {
         :class="m.role === 'user' ? 'user' : 'ai'"
       >
         <div class="chat-msg">
-          <div class="bubble" :class="m.role === 'user' ? 'user' : 'ai'">{{ m.text }}</div>
+          <div
+            class="bubble"
+            :class="[m.role === 'user' ? 'user' : 'ai', m.kind === 'guard' ? 'guard' : '', m.kind === 'emergency' ? 'emergency' : '']"
+          >{{ m.text }}</div>
           <span v-if="m.demo && m.role === 'assistant'" class="demo-tag">demo reply</span>
+          <span v-else-if="m.kind === 'guard'" class="guard-tag">guardrail</span>
+          <span v-else-if="m.kind === 'emergency'" class="emergency-tag">safety</span>
         </div>
       </div>
       <div v-if="saifState.sending" class="chat-turn ai">
@@ -306,21 +463,21 @@ function saifOnComposerKey(e: KeyboardEvent) {
 
     <!-- paste-report panel (opened by the clip) -->
     <div v-if="saifShowAttach" class="attach-panel">
-      <label class="attach-label">Paste your health report</label>
+      <label class="attach-label">Paste extra text (optional — Sage already reads your saved records)</label>
       <textarea
         v-model="saifReportDraft"
         class="attach-input"
         rows="5"
-        placeholder="Paste lab results or a report here — I'll use it as context."
+        placeholder="Paste lab results or a report here — I'll use it as extra context."
       ></textarea>
       <div class="attach-row">
-        <button type="button" class="btn mint small" @click="saifAttachReport">Attach report</button>
+        <button type="button" class="btn mint small" @click="saifAttachReport">Attach text</button>
         <button type="button" class="link-btn" @click="saifShowAttach = false">Cancel</button>
       </div>
     </div>
 
-    <div v-if="saifHasReport" class="report-attached">
-      <span class="ref-chip">Report attached · {{ saifState.report.length }} chars</span>
+    <div v-if="saifHasManualReport" class="report-attached">
+      <span class="ref-chip">Extra text attached · {{ saifState.report.length }} chars</span>
       <button type="button" class="link-btn" @click="saifClearReport">remove</button>
     </div>
 
@@ -328,9 +485,9 @@ function saifOnComposerKey(e: KeyboardEvent) {
       <button
         type="button"
         class="mic-btn"
-        :class="{ recording: saifHasReport }"
-        aria-label="Attach health report"
-        title="Paste a health report"
+        :class="{ recording: saifHasManualReport }"
+        aria-label="Attach extra text"
+        title="Paste extra text as context"
         @click="saifToggleAttach"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -341,9 +498,25 @@ function saifOnComposerKey(e: KeyboardEvent) {
         v-model="saifDraft"
         class="input"
         rows="1"
-        placeholder="Ask about your health…"
+        :placeholder="saifListening ? 'Listening… speak now' : 'Ask about your health…'"
         @keydown="saifOnComposerKey"
       ></textarea>
+      <button
+        v-if="saifMicSupported"
+        type="button"
+        class="mic-btn voice"
+        :class="{ 'mic-live': saifListening }"
+        :aria-label="saifListening ? 'Stop voice input' : 'Start voice input'"
+        :title="saifListening ? 'Stop dictating' : 'Dictate your message'"
+        @click="saifToggleMic"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" y1="19" x2="12" y2="23" />
+          <line x1="8" y1="23" x2="16" y2="23" />
+        </svg>
+      </button>
       <button
         type="button"
         class="send"
@@ -355,7 +528,8 @@ function saifOnComposerKey(e: KeyboardEvent) {
       </button>
     </div>
     <div class="composer-hint">
-      Attach a report with the clip · replies fall back to a demo when the API is unavailable ·
+      <template v-if="saifMicSupported">Tap the mic to dictate · </template>attach extra text with the clip ·
+      replies fall back to a demo when the API is unavailable ·
       <button type="button" class="link-btn" @click="saifResetChat">clear chat</button>
     </div>
   </div>
@@ -371,6 +545,7 @@ function saifOnComposerKey(e: KeyboardEvent) {
   padding: 12px 32px; border-bottom: 1px solid var(--sage-soft);
   font-family: 'Geist', system-ui; font-size: 12px; color: var(--ink-3);
 }
+.note-link { color: var(--forest); font-weight: 500; text-decoration: underline; }
 .chat-mode {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill);
@@ -382,6 +557,16 @@ function saifOnComposerKey(e: KeyboardEvent) {
 .chat-mode.demo { color: var(--warn); background: var(--warn-soft); }
 .chat-mode.demo .dot { background: #c98a1f; }
 
+/* standing guardrail / disclaimer */
+.sage-guard {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin: 14px 32px 0; padding: 10px 14px;
+  background: var(--mint-quiet); border: 1px solid rgba(164, 255, 207, 0.5);
+  border-radius: var(--r); color: var(--forest);
+  font-family: 'Geist', system-ui; font-size: 12px; line-height: 1.5;
+}
+.sage-guard svg { flex-shrink: 0; margin-top: 1px; opacity: 0.85; }
+
 /* demo banner */
 .chat-demo-banner {
   max-width: 820px; width: 100%; margin: 16px auto 0; padding: 0 48px;
@@ -389,12 +574,19 @@ function saifOnComposerKey(e: KeyboardEvent) {
   font-size: 12.5px; color: var(--warn);
 }
 
-/* demo tag under a bubble */
-.demo-tag {
+/* tags under a bubble */
+.demo-tag, .guard-tag, .emergency-tag {
   font-family: 'Geist', system-ui; font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em; color: var(--warn);
-  background: var(--warn-soft); border-radius: 5px; padding: 1px 7px; align-self: flex-start;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  border-radius: 5px; padding: 1px 7px; align-self: flex-start;
 }
+.demo-tag { color: var(--warn); background: var(--warn-soft); }
+.guard-tag { color: var(--forest); background: var(--mint-soft); }
+.emergency-tag { color: #b42318; background: #fee4e2; }
+
+/* guardrail + emergency bubbles */
+.bubble.guard { background: var(--mint-quiet); border: 1px solid rgba(164, 255, 207, 0.55); color: var(--forest); }
+.bubble.emergency { background: #fef3f2; border: 1px solid #fecdca; color: #b42318; }
 
 /* typing dots */
 .bubble.typing { display: inline-flex; gap: 4px; align-items: center; }
@@ -415,6 +607,16 @@ function saifOnComposerKey(e: KeyboardEvent) {
 .chat-composer textarea.input:focus { outline: none; border-color: var(--forest); }
 .chat-composer .mic-btn.recording { background: var(--mint); border-color: var(--forest); }
 .chat-composer .send:disabled { background: var(--sage-soft); color: var(--ink-4); cursor: not-allowed; }
+
+/* voice mic: live = pulsing red */
+.chat-composer .mic-btn.voice.mic-live {
+  background: #fee4e2; border-color: #f97066; color: #b42318;
+  animation: mic-pulse 1.2s infinite ease-in-out;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240, 68, 56, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(240, 68, 56, 0); }
+}
 
 /* report attached row */
 .report-attached {
@@ -448,6 +650,7 @@ function saifOnComposerKey(e: KeyboardEvent) {
 /* mobile: tighten the 48px side padding */
 @media (max-width: 860px) {
   .chat-note-row { padding: 12px 16px; }
+  .sage-guard { margin: 12px 16px 0; }
   .chat-messages { padding: 24px 16px; }
   .chat-composer { padding: 14px 16px 16px; }
   .composer-hint, .chat-demo-banner, .report-attached, .attach-panel { padding-left: 16px; padding-right: 16px; }
