@@ -40,6 +40,8 @@ interface SaifMessage {
   text: string;
   demo?: boolean; // reply came from the offline fallback
   kind?: SaifKind; // guardrail styling
+  uiLang?: string; // language the reader picked for this reply (label)
+  uiTx?: Record<string, string>; // cached translations per language label
 }
 interface SaifChatState {
   messages: SaifMessage[];
@@ -363,6 +365,87 @@ function saifDummyReply(userText: string): string {
   return SAIF_DEMO_DEFAULT;
 }
 
+// ---- language transcription + read-aloud (chatbot output) -------------------
+// Each AI reply can be translated (shown in the bubble) and read aloud in the
+// chosen language. Translation runs via /api/translate (Gemini); speech uses the
+// browser's SpeechSynthesis.
+const SAIF_LANGS = [
+  { label: 'English', en: 'English', code: 'en-US' },
+  { label: 'हिन्दी (Hindi)', en: 'Hindi', code: 'hi-IN' },
+  { label: 'मराठी (Marathi)', en: 'Marathi', code: 'mr-IN' },
+  { label: 'தமிழ் (Tamil)', en: 'Tamil', code: 'ta-IN' },
+];
+const saifOpenMenu = ref<number | null>(null);
+const saifPlaying = ref<number | null>(null);
+const saifTranslating = ref<number | null>(null);
+const saifTtsSupported = ref(false);
+onMounted(() => {
+  saifTtsSupported.value = typeof window !== 'undefined' && 'speechSynthesis' in window;
+});
+onBeforeUnmount(() => saifStopSpeaking());
+
+function saifLangLabel(m: SaifMessage) {
+  return m.uiLang || 'English';
+}
+function saifDisplayText(m: SaifMessage) {
+  const l = m.uiLang;
+  return l && l !== 'English' && m.uiTx?.[l] ? m.uiTx[l] : m.text;
+}
+function saifToggleMenu(i: number) {
+  saifOpenMenu.value = saifOpenMenu.value === i ? null : i;
+}
+
+async function saifPickLang(m: SaifMessage, i: number, lang: (typeof SAIF_LANGS)[number]) {
+  saifOpenMenu.value = null;
+  if (saifPlaying.value === i) saifStopSpeaking();
+
+  if (lang.label !== 'English' && !m.uiTx?.[lang.label]) {
+    saifTranslating.value = i;
+    try {
+      const res = await $fetch<{ text: string }>('/api/translate', {
+        method: 'POST',
+        body: { text: m.text, target: lang.en },
+      });
+      m.uiTx = { ...(m.uiTx || {}), [lang.label]: res.text || m.text };
+    } catch {
+      m.uiTx = { ...(m.uiTx || {}), [lang.label]: m.text }; // fall back to original
+    } finally {
+      saifTranslating.value = null;
+    }
+  }
+  m.uiLang = lang.label;
+  saifScrollToBottom();
+}
+
+function saifStopSpeaking() {
+  try {
+    window.speechSynthesis.cancel();
+  } catch {
+    /* ignore */
+  }
+  saifPlaying.value = null;
+}
+
+function saifListen(m: SaifMessage, i: number) {
+  if (!saifTtsSupported.value) return;
+  if (saifPlaying.value === i) {
+    saifStopSpeaking();
+    return;
+  }
+  saifStopSpeaking();
+  const lang = SAIF_LANGS.find((l) => l.label === saifLangLabel(m)) ?? SAIF_LANGS[0];
+  const u = new SpeechSynthesisUtterance(saifDisplayText(m));
+  u.lang = lang.code;
+  u.onend = () => {
+    if (saifPlaying.value === i) saifPlaying.value = null;
+  };
+  u.onerror = () => {
+    if (saifPlaying.value === i) saifPlaying.value = null;
+  };
+  saifPlaying.value = i;
+  window.speechSynthesis.speak(u);
+}
+
 // ---- ui helpers -------------------------------------------------------------
 function saifScrollToBottom() {
   nextTick(() => {
@@ -422,10 +505,44 @@ function saifOnComposerKey(e: KeyboardEvent) {
           <div
             class="bubble"
             :class="[m.role === 'user' ? 'user' : 'ai', m.kind === 'guard' ? 'guard' : '', m.kind === 'emergency' ? 'emergency' : '']"
-          >{{ m.text }}</div>
+          >{{ saifDisplayText(m) }}</div>
           <span v-if="m.demo && m.role === 'assistant'" class="demo-tag">demo reply</span>
           <span v-else-if="m.kind === 'guard'" class="guard-tag">guardrail</span>
           <span v-else-if="m.kind === 'emergency'" class="emergency-tag">safety</span>
+
+          <!-- read this reply aloud / in another language -->
+          <div v-if="m.role === 'assistant'" class="listen-menu-wrap">
+            <button
+              type="button"
+              class="listen-btn"
+              :class="{ playing: saifPlaying === i }"
+              :aria-label="saifPlaying === i ? 'Stop playback' : 'Play this message aloud'"
+              @click="saifListen(m, i)"
+            >
+              <span class="play">
+                <svg v-if="saifPlaying === i" viewBox="0 0 12 12" width="9" height="9" fill="currentColor" aria-hidden="true"><rect x="3" y="2" width="2.5" height="8" /><rect x="6.5" y="2" width="2.5" height="8" /></svg>
+                <svg v-else viewBox="0 0 12 12" width="9" height="9" fill="currentColor" aria-hidden="true"><path d="M3 2l7 4-7 4z" /></svg>
+              </span>
+              <span class="label">{{ saifTranslating === i ? 'Translating…' : saifPlaying === i ? 'Playing…' : 'Listen' }}</span>
+              <span class="lang-pick" role="button" tabindex="0" @click.stop="saifToggleMenu(i)" @keydown.enter.stop="saifToggleMenu(i)">
+                {{ saifLangLabel(m) }} <span class="caret">▾</span>
+              </span>
+            </button>
+            <div v-if="saifOpenMenu === i" class="listen-menu">
+              <div class="head">Hear it in</div>
+              <div
+                v-for="l in SAIF_LANGS"
+                :key="l.label"
+                class="opt"
+                :class="{ on: saifLangLabel(m) === l.label }"
+                @click="saifPickLang(m, i, l)"
+              >
+                <span>{{ l.label }}</span>
+                <span v-if="saifLangLabel(m) === l.label" class="check">✓</span>
+              </div>
+              <div class="foot">Voice is spoken by Sage. Not the doctor.</div>
+            </div>
+          </div>
         </div>
       </div>
       <div v-if="saifState.sending" class="chat-turn ai">
@@ -561,6 +678,37 @@ function saifOnComposerKey(e: KeyboardEvent) {
 /* small link button */
 .link-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500; color: var(--forest); text-decoration: underline; }
 .link-btn:hover { color: var(--ink); }
+
+/* ---- read-aloud + language pick (from sage-FINAL chat design) ---- */
+.listen-menu-wrap { position: relative; align-self: flex-start; }
+.listen-btn {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--sage-line); border-radius: var(--r-pill);
+  background: var(--glass-light);
+  font-family: 'Geist', system-ui; font-size: 11.5px; color: var(--ink-3);
+  cursor: pointer; overflow: hidden; align-self: flex-start;
+  transition: border-color 0.12s, color 0.12s;
+}
+.listen-btn:hover { border-color: var(--forest); color: var(--forest); }
+.listen-btn .play { display: inline-flex; align-items: center; justify-content: center; width: 24px; background: var(--white); color: var(--forest); border-right: 1px solid var(--sage-line); }
+.listen-btn:hover .play { background: var(--mint-soft); }
+.listen-btn .label { padding: 0 8px; display: inline-flex; align-items: center; letter-spacing: -0.003em; }
+.listen-btn .lang-pick { padding: 4px 10px 4px 6px; display: inline-flex; align-items: center; gap: 4px; border-left: 1px solid var(--sage-line); color: var(--ink); font-weight: 500; }
+.listen-btn .lang-pick:hover { background: var(--white); }
+.listen-btn .caret { font-size: 8px; color: var(--ink-4); }
+.listen-btn.playing { border-color: var(--forest); color: var(--forest); background: var(--mint-quiet); }
+.listen-btn.playing .play { background: var(--forest); color: var(--mint); border-right-color: var(--forest); }
+.listen-menu {
+  position: absolute; top: calc(100% + 8px); left: 0; min-width: 210px;
+  background: var(--white); border: 1px solid var(--sage-line); border-radius: var(--r);
+  box-shadow: 0 8px 32px rgba(20,30,20,0.10); padding: 6px; z-index: 20;
+}
+.listen-menu .head { font-family: 'Geist', system-ui; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500; padding: 8px 10px 6px; }
+.listen-menu .opt { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 4px; font-size: 13px; color: var(--ink); cursor: pointer; }
+.listen-menu .opt:hover { background: var(--off-white); }
+.listen-menu .opt.on { color: var(--forest); font-weight: 600; background: var(--mint-quiet); }
+.listen-menu .opt .check { color: var(--forest); font-size: 13px; }
+.listen-menu .foot { padding: 10px 10px 4px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--sage-soft); margin-top: 6px; line-height: 1.45; }
 
 /* mobile: tighten the 48px side padding */
 @media (max-width: 860px) {
