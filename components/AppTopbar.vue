@@ -13,7 +13,7 @@ const navOpen = useState('ui-nav-open', () => false);
     <div class="crumb">
       <slot><span class="this">{{ crumb }}</span></slot>
     </div>
-    <div class="search">Search everything…</div>
+    <div style="flex: 1" />
     <div class="avatar">P</div>
   </div>
 </template>

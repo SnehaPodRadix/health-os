@@ -101,6 +101,41 @@ if (saifState.value.messages.length === 0) {
   saifState.value.messages.push({ role: 'assistant', text: SAIF_GREETING });
 }
 
+// ---- persist the conversation across refreshes ------------------------------
+// useState is in-memory only, so a full refresh loses the chat. Mirror it to
+// localStorage and restore on mount (client-side).
+const SAIF_STORAGE_KEY = 'saif-chat-log';
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem(SAIF_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as { messages?: SaifMessage[]; mode?: 'live' | 'demo' };
+      if (saved.messages?.length) {
+        saifState.value.messages = saved.messages;
+        if (saved.mode) saifState.value.mode = saved.mode;
+      }
+    }
+  } catch {
+    /* ignore malformed / unavailable storage */
+  }
+  saifState.value.sending = false; // never restore a mid-send state
+});
+watch(
+  () => [saifState.value.messages, saifState.value.mode] as const,
+  () => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(
+        SAIF_STORAGE_KEY,
+        JSON.stringify({ messages: saifState.value.messages, mode: saifState.value.mode }),
+      );
+    } catch {
+      /* ignore quota / private-mode errors */
+    }
+  },
+  { deep: true },
+);
+
 // ---- guardrails -------------------------------------------------------------
 // Deterministic, client-side checks that run BEFORE any API call so the guard
 // message is instant and never depends on the model.
