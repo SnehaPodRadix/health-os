@@ -1,89 +1,59 @@
 <script setup lang="ts">
-// TEMPORARY dev harness to exercise the auth API end-to-end.
-// This is throwaway UI — replace with the real login screen when it's ready.
-interface PublicUser {
-  id: string;
-  username: string;
-  createdAt: string;
-}
+// Home — first-use (empty) state. Entry screen for the app.
+useHead({ title: 'Home · Health OS' });
 
-const username = ref('demo');
-const password = ref('password123');
-const status = ref('');
-const currentUser = ref<PublicUser | null>(null);
+const { records } = useRecords();
+const showAdd = ref(false);
+const toast = ref('');
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
-function errorMessage(e: unknown): string {
-  const data = (e as { data?: { statusMessage?: string; message?: string } })?.data;
-  return data?.statusMessage || data?.message || 'Request failed';
-}
-
-async function login() {
-  status.value = 'Logging in…';
-  try {
-    const res = await $fetch<{ user: PublicUser }>('/api/auth/login', {
-      method: 'POST',
-      body: { username: username.value, password: password.value },
-    });
-    currentUser.value = res.user;
-    status.value = `Logged in as ${res.user.username}`;
-  } catch (e) {
-    currentUser.value = null;
-    status.value = errorMessage(e);
-  }
-}
-
-async function whoAmI() {
-  try {
-    const res = await $fetch<{ user: PublicUser }>('/api/auth/me');
-    currentUser.value = res.user;
-    status.value = `Session valid: ${res.user.username}`;
-  } catch {
-    currentUser.value = null;
-    status.value = 'No active session';
-  }
-}
-
-async function logout() {
-  await $fetch('/api/auth/logout', { method: 'POST' });
-  currentUser.value = null;
-  status.value = 'Logged out';
+function onSaved() {
+  showAdd.value = false;
+  toast.value = 'Saved to your records';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.value = ''), 2400);
 }
 </script>
 
 <template>
-  <main class="wrap">
-    <h1>Health OS — auth dev harness</h1>
-    <p class="note">Temporary page for testing the login API. The real UI plugs in later.</p>
+  <AppTopbar crumb="Home" />
 
-    <label>Username
-      <input v-model="username" autocomplete="username" />
-    </label>
-    <label>Password
-      <input v-model="password" type="password" autocomplete="current-password" />
-    </label>
+  <div class="pbody pbody-narrow">
+    <h1 class="h1 large">Hello, Priya.</h1>
+    <p class="sub mt-8">Let's get your health records in one place.</p>
 
-    <div class="row">
-      <button type="button" @click="login">Log in</button>
-      <button type="button" @click="whoAmI">Who am I</button>
-      <button type="button" @click="logout">Log out</button>
+    <div class="mt-32" />
+
+    <div class="empty-hero">
+      <h2>No records yet</h2>
+      <p>
+        Add your first record and we'll start building your history. One at a time
+        or in batches — reports, prescriptions, scans.
+      </p>
+      <div class="empty-options">
+        <button class="btn primary large" type="button" @click="showAdd = true">Add your first record</button>
+      </div>
+      <p v-if="records.length" class="small muted mt-16">
+        {{ records.length }} record{{ records.length === 1 ? '' : 's' }} saved this session.
+      </p>
     </div>
 
-    <p class="status"><strong>{{ status || '—' }}</strong></p>
-    <pre v-if="currentUser">{{ currentUser }}</pre>
+    <div class="empty-secondary">
+      <div class="empty-item">
+        <div class="eyebrow">While we're empty</div>
+        <div class="name">Set up your emergency card</div>
+        <p>Blood type, allergies, current medications. Accessible from your lock screen if you need it.</p>
+        <button class="btn small" type="button">Set up</button>
+      </div>
+      <div class="empty-item">
+        <div class="eyebrow">Optional</div>
+        <div class="name">Add your care team</div>
+        <p>Your GP, therapist, specialists. Makes sharing records instant later.</p>
+        <NuxtLink to="/profile" class="btn small">Add doctors</NuxtLink>
+      </div>
+    </div>
+  </div>
 
-    <p class="link"><NuxtLink to="/upload">→ File upload / text extraction demo</NuxtLink></p>
-  </main>
+  <AddRecordModal v-if="showAdd" @close="showAdd = false" @saved="onSaved" />
+  <div v-if="toast" class="toast">{{ toast }}</div>
 </template>
-
-<style scoped>
-.wrap { max-width: 360px; margin: 72px auto; font-family: system-ui, sans-serif; display: flex; flex-direction: column; gap: 12px; color: #1a1a1a; }
-.note { color: #888; margin: 0 0 8px; font-size: 14px; }
-label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
-input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; }
-.row { display: flex; gap: 8px; margin-top: 4px; }
-button { padding: 8px 12px; border: 1px solid #999; border-radius: 6px; background: #f4f4f4; cursor: pointer; }
-.status { min-height: 20px; }
-pre { background: #f6f6f6; padding: 10px; border-radius: 6px; font-size: 12px; overflow: auto; }
-.link { margin-top: 16px; font-size: 14px; }
-.link a { color: #2b3856; }
-</style>
