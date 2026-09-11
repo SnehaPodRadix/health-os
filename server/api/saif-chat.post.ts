@@ -28,7 +28,11 @@ function saifSystemPrompt(report: string): string {
 }
 
 export default defineEventHandler(async (event) => {
-  const { geminiApiKey, geminiModel } = useRuntimeConfig();
+  const config = useRuntimeConfig();
+  // Prefer the live runtime env var (Netlify Functions expose it directly) and
+  // fall back to the build-time runtimeConfig value.
+  const geminiApiKey = process.env.GEMINI_API_KEY || (config.geminiApiKey as string) || '';
+  const geminiModel = process.env.GEMINI_MODEL || (config.geminiModel as string) || 'gemini-3.1-flash-lite';
   if (!geminiApiKey) {
     throw createError({ statusCode: 503, statusMessage: 'gemini-no-key' });
   }
