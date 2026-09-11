@@ -7,71 +7,67 @@ export interface CareTeamMember {
   createdAt: string;
 }
 
-const STORAGE_KEY = 'healthos.careteam';
-
 /** Match doctors ignoring an optional "Dr." prefix and case. */
 function normalizeName(name: string) {
   return name.trim().replace(/^dr\.?\s*/i, '').toLowerCase();
 }
 
 /**
- * Care team store — doctors pulled from saved records (deduped by name),
- * shown on the Profile page. Client-side only (useState + localStorage), like
- * records; no DB.
+ * Care team = doctors DERIVED from saved records (grouped by name, deduped
+ * ignoring "Dr."/case). Deriving from records means every record — including
+ * ones saved before this feature — is counted automatically, with no drift.
+ *
+ * Role/facility come from the record fields; for records saved before we stored
+ * the doctor's role, we fall back (read-only) to the legacy `healthos.careteam`
+ * store so their specialty isn't lost.
  */
 export function useCareTeam() {
-  const members = useState<CareTeamMember[]>('careteam', () => []);
+  const { records } = useRecords();
 
-  if (import.meta.client && !members.value.length) {
+  const legacy = useState<Record<string, { role?: string; facility?: string }>>(
+    'care-legacy',
+    () => ({}),
+  );
+  if (import.meta.client && !Object.keys(legacy.value).length) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) members.value = JSON.parse(raw);
+      const raw = localStorage.getItem('healthos.careteam');
+      if (raw) {
+        const map: Record<string, { role?: string; facility?: string }> = {};
+        for (const m of JSON.parse(raw) as CareTeamMember[]) {
+          map[normalizeName(m.name)] = { role: m.role, facility: m.facility };
+        }
+        legacy.value = map;
+      }
     } catch {
       /* ignore */
     }
   }
 
-  function persist() {
-    if (!import.meta.client) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(members.value));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  /** Add the doctor from a record, or bump their record count if already known. */
-  function upsertFromRecord(input: { name?: string; role?: string; facility?: string }) {
-    const name = input.name?.trim();
-    if (!name) return;
-    const key = normalizeName(name);
-    const existing = members.value.find((m) => normalizeName(m.name) === key);
-
-    if (existing) {
-      existing.recordCount += 1;
-      if (!existing.role && input.role?.trim()) existing.role = input.role.trim();
-      if (!existing.facility && input.facility?.trim()) existing.facility = input.facility.trim();
-      members.value = [...members.value];
-    } else {
-      members.value = [
-        ...members.value,
-        {
-          id: (import.meta.client && crypto.randomUUID?.()) || `dr_${Date.now()}`,
+  const members = computed<CareTeamMember[]>(() => {
+    const map = new Map<string, CareTeamMember>();
+    for (const r of records.value) {
+      const name = r.orderedBy?.trim();
+      if (!name) continue;
+      const key = normalizeName(name);
+      const existing = map.get(key);
+      if (existing) {
+        existing.recordCount += 1;
+        if (!existing.role && r.doctorRole?.trim()) existing.role = r.doctorRole.trim();
+        if (!existing.facility && r.source?.trim()) existing.facility = r.source.trim();
+      } else {
+        const lg = legacy.value[key] ?? {};
+        map.set(key, {
+          id: key,
           name,
-          role: input.role?.trim() || '',
-          facility: input.facility?.trim() || '',
+          role: r.doctorRole?.trim() || lg.role || '',
+          facility: r.source?.trim() || lg.facility || '',
           recordCount: 1,
-          createdAt: new Date().toISOString(),
-        },
-      ];
+          createdAt: r.createdAt,
+        });
+      }
     }
-    persist();
-  }
+    return [...map.values()].sort((a, b) => b.recordCount - a.recordCount);
+  });
 
-  function removeMember(id: string) {
-    members.value = members.value.filter((m) => m.id !== id);
-    persist();
-  }
-
-  return { members, upsertFromRecord, removeMember };
+  return { members };
 }

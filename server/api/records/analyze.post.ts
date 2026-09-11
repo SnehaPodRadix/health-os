@@ -24,7 +24,13 @@ const PROMPT = [
   'if none is determinable — interpret ambiguous all-numeric dates as day/month/year',
   '(day first). "orderedBy" is the treating/prescribing/ordering doctor\'s name if any.',
   '"doctorRole" is that doctor\'s specialty or role if stated (e.g. General physician,',
-  'Cardiologist, Therapist, Dentist), else empty. Do not invent facts not in the source.',
+  'Cardiologist, Therapist, Dentist), else empty.',
+  '"findings" is the key items in the record: for a lab report, each notable marker',
+  '(name; value WITH its unit, e.g. "11.2 g/dL"; flag one of low/high/normal; and a',
+  'one-sentence plain-English explanation of what it means for the person). For a',
+  'prescription, each medication (name; value = the dosage/instructions; flag empty;',
+  'explanation = what it is commonly for). Empty array if there are none.',
+  'Do not invent facts not in the source.',
 ].join(' ');
 
 const RESPONSE_SCHEMA = {
@@ -40,14 +46,28 @@ const RESPONSE_SCHEMA = {
     doctorRole: { type: 'STRING' }, // doctor specialty/role, if stated
     summary: { type: 'STRING' }, // one plain sentence
     text: { type: 'STRING' }, // full extracted text
+    findings: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          value: { type: 'STRING' }, // value with unit, or dosage/instructions
+          flag: { type: 'STRING' }, // low | high | normal | ''
+          explanation: { type: 'STRING' }, // one plain-English sentence
+        },
+        required: ['name', 'value', 'flag', 'explanation'],
+      },
+    },
   },
-  required: ['title', 'type', 'category', 'source', 'date', 'dateISO', 'orderedBy', 'doctorRole', 'summary', 'text'],
+  required: ['title', 'type', 'category', 'source', 'date', 'dateISO', 'orderedBy', 'doctorRole', 'summary', 'text', 'findings'],
 };
 
+interface Finding { name: string; value: string; flag: string; explanation: string; }
 interface RecordFields {
   title: string; type: string; category: string; source: string;
   date: string; dateISO?: string; orderedBy?: string; doctorRole?: string;
-  summary: string; text: string;
+  summary: string; text: string; findings?: Finding[];
 }
 
 export default defineEventHandler(async (event): Promise<{ record: RecordFields }> => {

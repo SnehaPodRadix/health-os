@@ -1,3 +1,10 @@
+export interface Finding {
+  name: string;
+  value: string;
+  flag: string; // 'low' | 'high' | 'normal' | ''
+  explanation: string;
+}
+
 export interface HealthRecord {
   id: string;
   title: string;
@@ -7,8 +14,10 @@ export interface HealthRecord {
   date: string;
   dateISO?: string;
   orderedBy?: string;
+  doctorRole?: string;
   summary: string;
   text: string;
+  findings?: Finding[];
   origin?: 'PDF' | 'Photo' | 'Note';
   context?: Record<string, string>;
   createdAt: string;

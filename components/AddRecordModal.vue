@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HealthRecord } from '~/composables/useRecords';
+import type { Finding, HealthRecord } from '~/composables/useRecords';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -7,7 +7,6 @@ const emit = defineEmits<{
 }>();
 
 const { addRecord } = useRecords();
-const { upsertFromRecord } = useCareTeam();
 
 type Step = 'source' | 'upload' | 'type' | 'processing' | 'confirm';
 const step = ref<Step>('source');
@@ -29,6 +28,7 @@ const typedText = ref('');
 // --- analysis state ---
 const analyzing = ref(false);
 const analyzeError = ref('');
+const analyzedFindings = ref<Finding[]>([]);
 
 // --- editable fields (confirm) ---
 const fields = reactive({
@@ -105,6 +105,7 @@ async function runAnalysis(body: Record<string, unknown>) {
     fields.doctorRole = record.doctorRole || '';
     fields.summary = record.summary || '';
     fields.text = record.text || '';
+    analyzedFindings.value = record.findings ?? [];
   } catch (err) {
     analyzeError.value =
       (err as { data?: { statusMessage?: string } })?.data?.statusMessage ??
@@ -138,8 +139,10 @@ function save() {
     date: fields.date,
     dateISO: fields.dateISO || undefined,
     orderedBy: fields.orderedBy || undefined,
+    doctorRole: fields.doctorRole || undefined,
     summary: fields.summary,
     text: fields.text,
+    findings: analyzedFindings.value,
     origin,
     context: {
       ...(context.occasion ? { occasion: context.occasion } : {}),
@@ -148,11 +151,7 @@ function save() {
     },
   });
 
-  // Pull the doctor into the Care team (deduped by name).
-  if (fields.orderedBy.trim()) {
-    upsertFromRecord({ name: fields.orderedBy, role: fields.doctorRole, facility: fields.source });
-  }
-
+  // Care team is derived from records (see useCareTeam) — nothing else to do here.
   emit('saved', record);
 }
 
