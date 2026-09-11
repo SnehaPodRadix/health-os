@@ -1,11 +1,9 @@
 <script setup lang="ts">
 /**
- * Client-side text extraction for medical records.
- * - PDF (text-based): pdfjs-dist reads the PDF's text layer.
- * - PNG / JPG: tesseract.js runs OCR on the image pixels.
- *
- * The file never leaves the browser — only the extracted text is emitted.
- * Both libraries lazy-load via dynamic import() so they don't bloat page load.
+ * Text extraction for medical records via Gemini.
+ * The file is sent (base64) to our server route `/api/records/extract`, which
+ * calls Google Gemini to OCR PDFs and images — including photos, scans,
+ * handwriting, and multiple languages. Only the extracted text comes back.
  */
 
 const emit = defineEmits<{
@@ -16,6 +14,7 @@ type State = 'idle' | 'reading' | 'error';
 
 const ACCEPTED = ['application/pdf', 'image/png', 'image/jpeg'];
 const MIN_TEXT_LENGTH = 10;
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
 const state = ref<State>('idle');
 const message = ref('');
@@ -63,80 +62,56 @@ async function handleFile(file: File) {
     fail(`"${file.name}" isn't a supported file. Please use a PDF, PNG, or JPG.`);
     return;
   }
+  if (file.size > MAX_BYTES) {
+    fail('That file is over 20 MB. Please use a smaller file.');
+    return;
+  }
 
   fileName.value = file.name;
   state.value = 'reading';
-  message.value = '';
-  progress.value = null;
+  message.value = 'Extracting text…';
+  progress.value = null; // server call — indeterminate
 
   try {
-    let text: string;
-
-    if (file.type === 'application/pdf') {
-      text = await extractPdf(file);
-      if (text.trim().length < MIN_TEXT_LENGTH) {
-        fail('This looks like a scanned PDF — try uploading it as an image instead.');
-        return;
-      }
-    } else {
-      text = await extractImage(file);
-      if (text.trim().length < MIN_TEXT_LENGTH) {
-        fail("Couldn't read enough text — try a sharper, well-lit file.");
-        return;
-      }
+    const text = await extractViaGemini(file);
+    if (text.trim().length < MIN_TEXT_LENGTH) {
+      fail("Couldn't read any text from that file — try a clearer copy.");
+      return;
     }
-
     state.value = 'idle';
     progress.value = null;
     message.value = '';
     emit('extracted', text.trim());
   } catch (err) {
     console.error('Extraction failed:', err);
-    fail("Something went wrong reading that file. Try again, or use a different file.");
+    const msg =
+      (err as { data?: { statusMessage?: string } })?.data?.statusMessage ??
+      'Something went wrong extracting the text. Try again, or use a different file.';
+    fail(msg);
   }
 }
 
-/** Read a text-based PDF via pdfjs-dist. */
-async function extractPdf(file: File): Promise<string> {
-  message.value = 'Reading PDF…';
-  const pdfjs = await import('pdfjs-dist');
-  // Bundle the worker locally (version-matched) instead of a CDN URL.
-  const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-
-  const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjs.getDocument({ data }).promise;
-
-  const pages: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    progress.value = Math.round(((i - 1) / pdf.numPages) * 100);
-    message.value = `Reading page ${i} of ${pdf.numPages}…`;
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ');
-    pages.push(pageText);
-  }
-  progress.value = 100;
-  return pages.join('\n\n');
-}
-
-/** OCR an image via tesseract.js. */
-async function extractImage(file: File): Promise<string> {
-  message.value = 'Reading image…';
-  const { default: Tesseract } = await import('tesseract.js');
-  const { data } = await Tesseract.recognize(file, 'eng', {
-    logger: (m: { status: string; progress: number }) => {
-      if (m.status === 'recognizing text') {
-        progress.value = Math.round(m.progress * 100);
-        message.value = `Reading text… ${progress.value}%`;
-      } else {
-        message.value = m.status.charAt(0).toUpperCase() + m.status.slice(1) + '…';
-      }
-    },
+/** Send the file to our server route, which runs Gemini extraction. */
+async function extractViaGemini(file: File): Promise<string> {
+  const data = await fileToBase64(file);
+  const res = await $fetch<{ text: string }>('/api/records/extract', {
+    method: 'POST',
+    body: { mimeType: file.type, data, filename: file.name },
   });
-  return data.text;
+  return res.text ?? '';
+}
+
+/** Read a File as base64 (without the data: prefix). */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(',') + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function reset() {
@@ -202,8 +177,7 @@ function reset() {
     </div>
 
     <p class="privacy">
-      🔒 Your file is read on your device and never uploaded. Only the extracted text
-      is processed.
+      🔒 Your file is sent securely to Google Gemini to read the text. We don't store it.
     </p>
   </div>
 </template>
