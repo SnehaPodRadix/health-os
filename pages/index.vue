@@ -118,14 +118,6 @@ const note = computed(() => {
             <NuxtLink class="ask-link" to="/chat">→ What are my current medications?</NuxtLink>
           </div>
         </div>
-
-        <div class="mt-32" />
-        <div class="section-head"><div class="eyebrow" style="margin:0;">Shortcuts</div></div>
-        <div>
-          <NuxtLink class="shortcut-btn" to="/summary">Generate a summary <span class="arrow">→</span></NuxtLink>
-          <NuxtLink class="shortcut-btn" to="/share">Share with a doctor <span class="arrow">→</span></NuxtLink>
-          <NuxtLink class="shortcut-btn" to="/emergency">Emergency card <span class="arrow">→</span></NuxtLink>
-        </div>
       </div>
     </div>
   </div>
