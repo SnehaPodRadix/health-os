@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HealthRecord } from '~/composables/useRecords';
 
-useHead({ title: 'Home · Health OS' });
+useHead({ title: 'Home · Sage' });
 
 const { records } = useRecords();
 const showAdd = ref(false);
@@ -69,12 +69,12 @@ const note = computed(() => {
   <div v-if="records.length" class="pbody">
     <div class="home-header">
       <div>
-        <h1 class="h-hero">{{ greeting }}, <span class="italic">Priya.</span></h1>
+        <h1 class="h-hero">{{ greeting }}, <span class="italic">Vikram.</span></h1>
         <p class="sub mt-8">
           {{ records.length }} record{{ records.length === 1 ? '' : 's' }}<span v-if="yearsSpan"> · {{ yearsSpan }}</span>.
         </p>
       </div>
-      <button class="btn mint large" type="button" @click="showAdd = true">Add record</button>
+      <button class="btn dark large" type="button" @click="showAdd = true">Add record</button>
     </div>
 
     <div class="home-grid">
@@ -122,9 +122,9 @@ const note = computed(() => {
         <div class="mt-32" />
         <div class="section-head"><div class="eyebrow" style="margin:0;">Shortcuts</div></div>
         <div>
-          <NuxtLink class="shortcut-btn" to="/insights">View your insights <span class="arrow">→</span></NuxtLink>
-          <NuxtLink class="shortcut-btn" to="/records">Browse all records <span class="arrow">→</span></NuxtLink>
-          <NuxtLink class="shortcut-btn" to="/profile">Your care team <span class="arrow">→</span></NuxtLink>
+          <NuxtLink class="shortcut-btn" to="/summary">Generate a summary <span class="arrow">→</span></NuxtLink>
+          <NuxtLink class="shortcut-btn" to="/share">Share with a doctor <span class="arrow">→</span></NuxtLink>
+          <NuxtLink class="shortcut-btn" to="/emergency">Emergency card <span class="arrow">→</span></NuxtLink>
         </div>
       </div>
     </div>
@@ -132,7 +132,7 @@ const note = computed(() => {
 
   <!-- ===================== FIRST-USE EMPTY ===================== -->
   <div v-else class="pbody pbody-narrow">
-    <h1 class="h-hero">Hello, <span class="italic">Priya.</span></h1>
+    <h1 class="h-hero">Hello, <span class="italic">Vikram.</span></h1>
     <p class="sub mt-8">Let's get your health records in one place.</p>
 
     <div class="mt-32" />
@@ -144,7 +144,7 @@ const note = computed(() => {
         or in batches — reports, prescriptions, scans.
       </p>
       <div class="empty-options">
-        <button class="btn mint large" type="button" @click="showAdd = true">Add your first record</button>
+        <button class="btn dark large" type="button" @click="showAdd = true">Add your first record</button>
       </div>
     </div>
 

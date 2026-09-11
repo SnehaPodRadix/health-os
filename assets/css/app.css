@@ -8,30 +8,34 @@
  * The UX/markup of the pages is unchanged — this is purely the skin.
  * ========================================================================== */
 
-/* ---------- app shell: SAGE gradient + grain on the real .pshell ---------- */
+/* ---------- app shell: FULL-SCREEN with SAGE v6 atmosphere ----------
+   The v6 prototype shows the app inside a windowed .frame card — that's just a
+   mock. The real app is full-bleed: the atmospheric gradient + grain live on the
+   full-screen .pshell, which fills the viewport and scrolls its content region. */
 html, body { min-height: 100%; }
 body { background: #E8EAE5; }
 
 .pshell {
-  min-height: 100vh;
+  height: 100vh;
   position: relative;
   isolation: isolate;
   background:
-    radial-gradient(ellipse 60% 50% at 15% 10%, rgba(164, 255, 207, 0.28), transparent 60%),
-    radial-gradient(ellipse 55% 45% at 85% 90%, rgba(144, 148, 130, 0.20), transparent 60%),
-    radial-gradient(ellipse 40% 40% at 60% 40%, rgba(255, 255, 255, 1) 0%, transparent 40%),
-    linear-gradient(135deg, #FCFDFA 0%, #FFFFFF 50%, #F5F6F0 100%);
+    radial-gradient(ellipse 68% 58% at 92% 18%, rgba(164, 255, 207, 0.34), transparent 62%),
+    radial-gradient(ellipse 52% 48% at 78% 88%, rgba(144, 148, 130, 0.22), transparent 64%),
+    radial-gradient(ellipse 34% 30% at 100% 52%, rgba(18, 68, 52, 0.07), transparent 70%),
+    radial-gradient(ellipse 55% 60% at 18% 45%, rgba(255, 255, 255, 0.95) 0%, transparent 62%),
+    linear-gradient(105deg, #FBFCF9 0%, #FFFFFF 42%, #F3F6EF 100%);
 }
 .pshell::before {
   content: '';
-  position: absolute; inset: 0;
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  opacity: 0.05; z-index: 0; pointer-events: none; mix-blend-mode: multiply;
+  opacity: 0.05; mix-blend-mode: multiply;
 }
 .pnav, .pmain { position: relative; z-index: 2; }
-
-/* keep the app viewport-tall with its own scroll region */
-.pmain { max-height: 100vh; }
+.pnav { overflow-y: auto; }
+.pmain { min-height: 0; }
+.pbody { overflow-y: auto; min-height: 0; }
 
 /* ---------- typography bridges (Sneha class names → SAGE display type) ----- */
 .h1 {
@@ -46,20 +50,16 @@ body { background: #E8EAE5; }
   color: var(--ink); margin: 0 0 12px;
 }
 
-/* ---------- button bridges ---------- */
-/* SAGE's base .btn has no fill; give bare buttons a visible light glass look. */
-.btn { background: var(--glass-light); color: var(--forest); }
-.btn:hover { background: var(--glass-light-hover); }
-/* SAGE has no forest-filled button — the primary CTA is mint (forest text). */
-.btn.primary, .btn.mint { background: var(--mint); color: var(--forest); font-weight: 600; }
-.btn.primary:hover, .btn.mint:hover { background: #8FF3BE; }
-.btn.light { background: var(--glass-light); color: var(--forest); }
-.btn.light:hover { background: var(--glass-light-hover); }
-.btn.outline { background: transparent; border: 1px solid var(--sage); color: var(--forest); }
-.btn.outline:hover { background: var(--glass-light); }
-.btn.ghost { background: transparent; color: var(--ink-2); }
-.btn.ghost:hover { background: var(--glass-light); color: var(--forest); }
-.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+/* ---------- buttons ---------- */
+/* v6 styles .btn.dark (primary) / .btn.light (secondary) / .btn.ghost / .btn.mint
+   in sage.css — don't override them here. Just the disabled state + primary alias. */
+.btn.primary { background: var(--ink-black); color: var(--off-white); }
+.btn[disabled], .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn[disabled]::before, .btn:disabled::before { display: none; }
+
+/* ask-card input is a NuxtLink (<a>) in our app — force block so it doesn't
+   overlap the subtitle the way an inline element would. */
+.ask-input { display: block; }
 
 /* ---------- chip bridge ---------- */
 .chip.plain { background: var(--sage-soft); color: var(--ink-3); border: none; }

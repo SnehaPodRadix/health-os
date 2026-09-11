@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CareTeamMember } from '~/composables/useCareTeam';
 
-useHead({ title: 'Profile · Health OS' });
+useHead({ title: 'Profile · Sage' });
 
 const { members } = useCareTeam();
 
@@ -25,7 +25,7 @@ function roleLine(m: CareTeamMember) {
   <AppTopbar crumb="Profile" />
 
   <div class="pbody pbody-narrow">
-    <h1 class="h1 large">Priya Sharma</h1>
+    <h1 class="h1 large">Vikram Rao</h1>
     <p class="sub mt-8">34 · Mumbai · Managing your own records</p>
 
     <div class="mt-40" />
@@ -49,7 +49,7 @@ function roleLine(m: CareTeamMember) {
             <div class="care-name">{{ m.name }}</div>
             <div class="care-role">{{ roleLine(m) }}</div>
           </div>
-          <button class="btn small" type="button">Manage</button>
+          <button class="btn small light" type="button">Manage</button>
         </div>
       </div>
       <p v-else class="sub" style="padding: 4px 0 8px;">
@@ -57,7 +57,7 @@ function roleLine(m: CareTeamMember) {
         doctor's name and they'll appear.
       </p>
 
-      <button class="btn mt-16" type="button">Add someone</button>
+      <button class="btn light mt-16" type="button">Add someone</button>
     </div>
 
     <div class="profile-section">

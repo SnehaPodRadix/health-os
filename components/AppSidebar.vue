@@ -16,7 +16,7 @@ function isActive(to: string) {
 
 <template>
   <nav class="pnav">
-    <div class="brand"><span class="mark" />Health OS</div>
+    <div class="brand"><SageLogo class="logo" /></div>
     <NuxtLink
       v-for="l in links"
       :key="l.to"
@@ -35,7 +35,7 @@ function isActive(to: string) {
     <div class="foot">
       <div class="avatar">P</div>
       <div class="who">
-        <div class="name">Priya</div>
+        <div class="name">Vikram</div>
         <div class="plan">Free plan</div>
       </div>
     </div>

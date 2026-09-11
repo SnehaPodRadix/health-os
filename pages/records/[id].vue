@@ -3,7 +3,7 @@ const route = useRoute();
 const { records } = useRecords();
 
 const record = computed(() => records.value.find((r) => r.id === route.params.id));
-useHead(() => ({ title: `${record.value?.title ?? 'Record'} · Health OS` }));
+useHead(() => ({ title: `${record.value?.title ?? 'Record'} · Sage` }));
 
 type View = 'plain' | 'clinical' | 'original';
 const view = ref<View>('plain');
@@ -119,7 +119,7 @@ function flag(f: string) {
       <h2>Record not found</h2>
       <p>It may have been removed, or this link was opened on another device (records are stored in your browser).</p>
       <div class="empty-options">
-        <NuxtLink to="/records" class="btn primary large">Back to records</NuxtLink>
+        <NuxtLink to="/records" class="btn dark large">Back to records</NuxtLink>
       </div>
     </div>
   </div>

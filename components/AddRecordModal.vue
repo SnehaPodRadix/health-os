@@ -40,7 +40,7 @@ const fields = reactive({
   dateISO: '',
   orderedBy: '',
   doctorRole: '',
-  whoseRecord: 'Priya (me)',
+  whoseRecord: 'Vikram (me)',
   summary: '',
   text: '',
 });
@@ -236,8 +236,8 @@ const confirmSub = computed(() =>
       <div class="modal-foot">
         <div class="step">Step 1 of 3 — Upload</div>
         <div class="actions">
-          <button class="btn" type="button" @click="step = 'source'">Back</button>
-          <button class="btn primary" type="button" :disabled="!file" @click="readFile">Read this</button>
+          <button class="btn light" type="button" @click="step = 'source'">Back</button>
+          <button class="btn dark" type="button" :disabled="!file" @click="readFile">Read this</button>
         </div>
       </div>
     </div>
@@ -255,8 +255,8 @@ const confirmSub = computed(() =>
       <div class="modal-foot">
         <div class="step">Step 1 of 3 — Write</div>
         <div class="actions">
-          <button class="btn" type="button" @click="step = 'source'">Back</button>
-          <button class="btn primary" type="button" :disabled="typedText.trim().length < 3" @click="readText">Read this</button>
+          <button class="btn light" type="button" @click="step = 'source'">Back</button>
+          <button class="btn dark" type="button" :disabled="typedText.trim().length < 3" @click="readText">Read this</button>
         </div>
       </div>
     </div>
@@ -303,8 +303,8 @@ const confirmSub = computed(() =>
       <div class="modal-foot">
         <div class="step">Step 2 of 3 — Reading</div>
         <div class="actions">
-          <button v-if="analyzeError" class="btn" type="button" @click="step = file ? 'upload' : 'type'">Back</button>
-          <button class="btn primary" type="button" :disabled="analyzing || !!analyzeError" @click="step = 'confirm'">Continue</button>
+          <button v-if="analyzeError" class="btn light" type="button" @click="step = file ? 'upload' : 'type'">Back</button>
+          <button class="btn dark" type="button" :disabled="analyzing || !!analyzeError" @click="step = 'confirm'">Continue</button>
         </div>
       </div>
     </div>
@@ -353,8 +353,8 @@ const confirmSub = computed(() =>
       <div class="modal-foot">
         <div class="step">Step 3 of 3 — Confirm</div>
         <div class="actions">
-          <button class="btn" type="button" @click="step = 'processing'">Back</button>
-          <button class="btn primary" type="button" @click="save">Save record</button>
+          <button class="btn light" type="button" @click="step = 'processing'">Back</button>
+          <button class="btn dark" type="button" @click="save">Save record</button>
         </div>
       </div>
     </div>

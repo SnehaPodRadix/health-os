@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HealthRecord } from '~/composables/useRecords';
 
-useHead({ title: 'Records · Health OS' });
+useHead({ title: 'Records · Sage' });
 
 const { records } = useRecords();
 const showAdd = ref(false);
@@ -72,7 +72,7 @@ function exportAll() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'health-os-records.json';
+  a.download = 'sage-records.json';
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -90,8 +90,8 @@ function exportAll() {
         </p>
       </div>
       <div class="hstack">
-        <button class="btn" type="button" :disabled="!records.length" @click="exportAll">Export all</button>
-        <button class="btn primary" type="button" @click="showAdd = true">Add record</button>
+        <button class="btn light" type="button" :disabled="!records.length" @click="exportAll">Export all</button>
+        <button class="btn dark" type="button" @click="showAdd = true">Add record</button>
       </div>
     </div>
 
@@ -126,7 +126,7 @@ function exportAll() {
       <h2>No records yet</h2>
       <p>Add your first record and it'll appear here on your timeline.</p>
       <div class="empty-options">
-        <button class="btn primary large" type="button" @click="showAdd = true">Add a record</button>
+        <button class="btn dark large" type="button" @click="showAdd = true">Add a record</button>
       </div>
     </div>
   </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HealthRecord } from '~/composables/useRecords';
 
-useHead({ title: 'Insights · Health OS' });
+useHead({ title: 'Insights · Sage' });
 
 const { records, updateRecord } = useRecords();
 const dismissed = ref<Set<string>>(new Set());
@@ -191,7 +191,7 @@ function dismiss(key: string) {
       <h2>No insights yet</h2>
       <p>Add records with lab values or prescriptions and patterns — trends, out-of-range values — will show up here.</p>
       <div class="empty-options">
-        <NuxtLink to="/records" class="btn primary large">Go to records</NuxtLink>
+        <NuxtLink to="/records" class="btn dark large">Go to records</NuxtLink>
       </div>
     </div>
   </div>
