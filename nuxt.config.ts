@@ -2,6 +2,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   devtools: { enabled: true },
+  nitro: { preset: 'netlify' },
   // sage.css = SAGE design system, app.css = reskin/responsive layer (loads after).
   css: ['~/assets/css/sage.css', '~/assets/css/app.css'],
   app: {
