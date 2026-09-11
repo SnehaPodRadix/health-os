@@ -15,6 +15,7 @@ useHead({ title: 'Shared · Health OS' });
 type SaifShareStatus = 'active' | 'expiring' | 'expired' | 'revoked';
 interface SaifShare {
   id: string;
+  code?: string; // stable share code → /s/<code>
   who: string;
   tag?: string; // e.g. "family"
   what: string;
@@ -83,9 +84,32 @@ function saifTodayLabel() {
   }
 }
 
+// ---- links ------------------------------------------------------------------
+function saifOrigin() {
+  return (import.meta.client && window.location.origin) || '';
+}
+// A stable link per share, on THIS deployment's own domain.
+function saifLinkFor(s: SaifShare) {
+  if (!s.code) {
+    s.code = saifCode();
+    saifPersist();
+  }
+  return `${saifOrigin()}/s/${s.code}`;
+}
+async function saifCopy(link: string) {
+  try {
+    if (import.meta.client && navigator.clipboard) await navigator.clipboard.writeText(link);
+  } catch {
+    /* clipboard blocked — the link is still shown in the toast */
+  }
+}
+
 // ---- per-share actions ------------------------------------------------------
-function saifViewLink(s: SaifShare) {
-  saifToast(`Link copied — sage.app/s/${saifCode()}`);
+async function saifViewLink(s: SaifShare) {
+  const link = saifLinkFor(s);
+  await saifCopy(link);
+  if (import.meta.client) window.open(link, '_blank', 'noopener');
+  saifToast(`Link copied — ${link.replace(/^https?:\/\//, '')}`);
 }
 function saifRevoke(s: SaifShare) {
   s.status = 'revoked';
@@ -99,12 +123,14 @@ function saifExtend(s: SaifShare) {
   saifPersist();
   saifToast('Extended by 30 days');
 }
-function saifReshare(s: SaifShare) {
+async function saifReshare(s: SaifShare) {
   s.status = 'active';
   s.expiry = 'Expires in 7 days';
   s.sharedOn = `Shared ${saifTodayLabel()}`;
+  s.code = saifCode(); // fresh link on re-share
   saifPersist();
   tab.value = 'active';
+  await saifCopy(saifLinkFor(s));
   saifToast('Re-shared · link copied');
 }
 
@@ -199,7 +225,7 @@ const saifSummary = computed(() => {
 });
 
 // Generate the share link → create the active share from the current config.
-function saifGenerate() {
+async function saifGenerate() {
   const expiryLabel = cfg.value.expiry === 'Never'
     ? 'Never expires'
     : cfg.value.expiry === '24 h'
@@ -207,6 +233,7 @@ function saifGenerate() {
       : `Expires in ${cfg.value.expiry}`;
   const nw: SaifShare = {
     id: (import.meta.client && crypto.randomUUID?.()) || `share_${Date.now()}`,
+    code: saifCode(),
     who: cfg.value.who,
     tag: cfg.value.tag,
     what: cfg.value.what,
@@ -219,7 +246,9 @@ function saifGenerate() {
   saifPersist();
   tab.value = 'active';
   drawerOpen.value = false;
-  saifToast(`Link copied — sage.app/s/${saifCode()}`);
+  const link = saifLinkFor(nw);
+  await saifCopy(link);
+  saifToast(`Link copied — ${link.replace(/^https?:\/\//, '')}`);
 }
 </script>
 
