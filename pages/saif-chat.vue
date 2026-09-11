@@ -270,163 +270,186 @@ function saifOnComposerKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <main class="saif-wrap">
-    <header class="saif-head">
-      <div class="saif-brand">
-        <div class="saif-logo" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
-          </svg>
-        </div>
-        <div>
-          <h1>Health Assistant</h1>
-          <p class="saif-sub">AI-guided · not a substitute for professional care</p>
+  <AppTopbar crumb="Chat" />
+
+  <div class="chat-note-row">
+    <span class="note-text">Answers are AI-guided · not a substitute for professional care.</span>
+    <span class="chat-mode" :class="saifState.mode">
+      <span class="dot" />{{ saifState.mode === 'live' ? 'Live · Gemini' : 'Demo mode' }}
+    </span>
+  </div>
+
+  <div class="chat-body">
+    <div v-if="saifState.mode === 'demo'" class="chat-demo-banner">
+      <span>⚠️ Live AI is unavailable (quota or error) — showing pre-defined demo replies.</span>
+      <button type="button" class="link-btn" @click="saifRetryLive">try live again</button>
+    </div>
+
+    <div ref="saifScroller" class="chat-messages">
+      <div
+        v-for="(m, i) in saifState.messages"
+        :key="i"
+        class="chat-turn"
+        :class="m.role === 'user' ? 'user' : 'ai'"
+      >
+        <div class="chat-msg">
+          <div class="bubble" :class="m.role === 'user' ? 'user' : 'ai'">{{ m.text }}</div>
+          <span v-if="m.demo && m.role === 'assistant'" class="demo-tag">demo reply</span>
         </div>
       </div>
-      <span class="saif-mode" :class="saifState.mode">
-        <span class="saif-dot"></span>
-        {{ saifState.mode === 'live' ? 'Live · Gemini' : 'Demo mode' }}
-      </span>
-    </header>
+      <div v-if="saifState.sending" class="chat-turn ai">
+        <div class="chat-msg">
+          <div class="bubble ai typing"><span /><span /><span /></div>
+        </div>
+      </div>
+    </div>
 
-    <section class="saif-chat">
-      <div v-if="saifHasReport" class="saif-report-chip">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 3v5h5" /><path d="M7 3h8l5 5v13H7z" />
+    <!-- paste-report panel (opened by the clip) -->
+    <div v-if="saifShowAttach" class="attach-panel">
+      <label class="attach-label">Paste your health report</label>
+      <textarea
+        v-model="saifReportDraft"
+        class="attach-input"
+        rows="5"
+        placeholder="Paste lab results or a report here — I'll use it as context."
+      ></textarea>
+      <div class="attach-row">
+        <button type="button" class="btn mint small" @click="saifAttachReport">Attach report</button>
+        <button type="button" class="link-btn" @click="saifShowAttach = false">Cancel</button>
+      </div>
+    </div>
+
+    <div v-if="saifHasReport" class="report-attached">
+      <span class="ref-chip">Report attached · {{ saifState.report.length }} chars</span>
+      <button type="button" class="link-btn" @click="saifClearReport">remove</button>
+    </div>
+
+    <div class="chat-composer">
+      <button
+        type="button"
+        class="mic-btn"
+        :class="{ recording: saifHasReport }"
+        aria-label="Attach health report"
+        title="Paste a health report"
+        @click="saifToggleAttach"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" />
         </svg>
-        Report attached ({{ saifState.report.length }} chars)
-        <button type="button" class="saif-chip-btn" @click="saifClearReport">remove</button>
-      </div>
-
-      <div v-if="saifState.mode === 'demo'" class="saif-banner">
-        ⚠️ Live AI is unavailable (quota or error) — showing pre-defined demo replies.
-        <button type="button" class="saif-chip-btn" @click="saifRetryLive">try live again</button>
-      </div>
-
-      <div ref="saifScroller" class="saif-messages">
-        <div v-for="(m, i) in saifState.messages" :key="i" class="saif-msg" :class="m.role">
-          <div class="saif-bubble">
-            {{ m.text }}
-            <span v-if="m.demo && m.role === 'assistant'" class="saif-demo-tag">demo</span>
-          </div>
-        </div>
-        <div v-if="saifState.sending" class="saif-msg assistant">
-          <div class="saif-bubble saif-typing"><span></span><span></span><span></span></div>
-        </div>
-      </div>
-
-      <!-- paste-report panel (opened by the paperclip) -->
-      <div v-if="saifShowAttach" class="saif-attach-panel">
-        <label class="saif-attach-label">Paste your health report</label>
-        <textarea
-          v-model="saifReportDraft"
-          class="saif-attach-input"
-          rows="5"
-          placeholder="Paste lab results or a report here — I'll use it as context."
-        ></textarea>
-        <div class="saif-attach-row">
-          <button type="button" class="saif-btn primary" @click="saifAttachReport">Attach report</button>
-          <button type="button" class="saif-link" @click="saifShowAttach = false">Cancel</button>
-        </div>
-      </div>
-
-      <div class="saif-composer">
-        <button
-          type="button"
-          class="saif-clip"
-          :class="{ active: saifHasReport }"
-          @click="saifToggleAttach"
-          aria-label="Attach health report"
-          title="Paste a health report"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" />
-          </svg>
-        </button>
-        <textarea
-          v-model="saifDraft"
-          class="saif-composer-input"
-          rows="1"
-          placeholder="Ask about your health…"
-          @keydown="saifOnComposerKey"
-        ></textarea>
-        <button
-          type="button"
-          class="saif-send"
-          :disabled="!saifDraft.trim() || saifState.sending"
-          @click="saifSend"
-          aria-label="Send"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="saif-foot">
-        <button type="button" class="saif-link" @click="saifResetChat">Clear chat</button>
-      </div>
-    </section>
-  </main>
+      </button>
+      <textarea
+        v-model="saifDraft"
+        class="input"
+        rows="1"
+        placeholder="Ask about your health…"
+        @keydown="saifOnComposerKey"
+      ></textarea>
+      <button
+        type="button"
+        class="send"
+        :disabled="!saifDraft.trim() || saifState.sending"
+        aria-label="Send"
+        @click="saifSend"
+      >
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M2 8l12-5-4 12-2-5z" /></svg>
+      </button>
+    </div>
+    <div class="composer-hint">
+      Attach a report with the clip · replies fall back to a demo when the API is unavailable ·
+      <button type="button" class="link-btn" @click="saifResetChat">clear chat</button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.saif-wrap { max-width: 720px; margin: 40px auto; padding: 0 20px; font-family: system-ui, sans-serif; color: #1a1a1a; display: flex; flex-direction: column; min-height: 80vh; }
+/* full-height chat that fills the shell (overrides sage.css fixed 720px) */
+.chat-body { height: auto; flex: 1; min-height: 0; }
 
-/* header */
-.saif-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.saif-brand { display: flex; align-items: center; gap: 12px; }
-.saif-logo { width: 38px; height: 38px; border-radius: 11px; background: #5b66cc; display: flex; align-items: center; justify-content: center; }
-.saif-head h1 { font-size: 19px; margin: 0; }
-.saif-sub { font-size: 12px; color: #a8a8a2; margin: 2px 0 0; }
-.saif-mode { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 16px; border: 1.5px solid #cfcfc9; background: #fff; color: #6d6d67; }
-.saif-mode .saif-dot { width: 8px; height: 8px; border-radius: 50%; background: #b6b6ae; }
-.saif-mode.live { color: #2f7a4d; border-color: #bfe0cc; background: #eefaf1; }
-.saif-mode.live .saif-dot { background: #3bab68; }
-.saif-mode.demo { color: #9a6a2f; border-color: #ecd9bf; background: #fbf3e6; }
-.saif-mode.demo .saif-dot { background: #d89b3b; }
+/* note row under the top bar */
+.chat-note-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 32px; border-bottom: 1px solid var(--sage-soft);
+  font-family: 'Geist', system-ui; font-size: 12px; color: var(--ink-3);
+}
+.chat-mode {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill);
+  letter-spacing: 0.01em;
+}
+.chat-mode .dot { width: 7px; height: 7px; border-radius: 50%; }
+.chat-mode.live { color: var(--forest); background: var(--mint-soft); }
+.chat-mode.live .dot { background: #2f9d63; }
+.chat-mode.demo { color: var(--warn); background: var(--warn-soft); }
+.chat-mode.demo .dot { background: #c98a1f; }
 
-/* chat */
-.saif-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.saif-report-chip { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; font-size: 12px; font-weight: 600; color: #6069c0; background: #eef0ff; border: 1.5px solid #d7dbf7; border-radius: 16px; padding: 5px 11px; margin-bottom: 10px; }
-.saif-banner { font-size: 13px; color: #9a6a2f; background: #fbf3e6; border: 1.5px solid #ecd9bf; border-radius: 10px; padding: 10px 13px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.saif-chip-btn { border: none; background: none; color: #5b66cc; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
+/* demo banner */
+.chat-demo-banner {
+  max-width: 820px; width: 100%; margin: 16px auto 0; padding: 0 48px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--warn);
+}
 
-.saif-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 18px; background: #fbfbf9; border: 1.5px solid #eceae3; border-radius: 14px; min-height: 340px; }
-.saif-msg { display: flex; }
-.saif-msg.user { justify-content: flex-end; }
-.saif-bubble { max-width: 78%; padding: 12px 15px; font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
-.saif-msg.assistant .saif-bubble { background: #fff; border: 1.5px solid #e6e4dd; border-radius: 16px 16px 16px 4px; color: #3a3a42; }
-.saif-msg.user .saif-bubble { background: #e8ebff; border: 1.5px solid #d7dbf7; border-radius: 16px 16px 4px 16px; color: #4b4f78; }
-.saif-demo-tag { display: inline-block; margin-left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #9a6a2f; background: #fbf3e6; border-radius: 6px; padding: 1px 6px; vertical-align: middle; }
+/* demo tag under a bubble */
+.demo-tag {
+  font-family: 'Geist', system-ui; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--warn);
+  background: var(--warn-soft); border-radius: 5px; padding: 1px 7px; align-self: flex-start;
+}
 
-.saif-typing { display: inline-flex; gap: 4px; align-items: center; }
-.saif-typing span { width: 7px; height: 7px; border-radius: 50%; background: #c4c4bd; animation: saif-bounce 1.1s infinite ease-in-out; }
-.saif-typing span:nth-child(2) { animation-delay: 0.15s; }
-.saif-typing span:nth-child(3) { animation-delay: 0.3s; }
-@keyframes saif-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-4px); opacity: 1; } }
+/* typing dots */
+.bubble.typing { display: inline-flex; gap: 4px; align-items: center; }
+.bubble.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); animation: chat-bounce 1.1s infinite ease-in-out; }
+.bubble.typing span:nth-child(2) { animation-delay: 0.15s; }
+.bubble.typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-4px); opacity: 1; } }
 
-/* attach panel */
-.saif-attach-panel { margin-top: 12px; background: #f6f5f0; border: 1.5px solid #d1cec4; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.saif-attach-label { font-size: 13px; font-weight: 600; color: #55555c; }
-.saif-attach-input { width: 100%; box-sizing: border-box; border: 1.5px solid #cfcfc9; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 13.5px; line-height: 1.5; resize: vertical; background: #fff; color: #1a1a1a; }
-.saif-attach-input:focus { outline: none; border-color: #5b66cc; }
-.saif-attach-row { display: flex; align-items: center; gap: 12px; }
-.saif-btn { padding: 9px 15px; border-radius: 20px; border: 1.5px solid #5b66cc; background: #5b66cc; color: #fff; font-size: 13.5px; font-weight: 600; cursor: pointer; }
-.saif-btn.primary:hover { background: #4a55bb; }
+/* preserve line breaks in replies */
+.bubble { white-space: pre-wrap; word-break: break-word; }
 
-/* composer */
-.saif-composer { display: flex; align-items: flex-end; gap: 10px; margin-top: 14px; }
-.saif-clip { width: 44px; height: 44px; flex-shrink: 0; border: 1.5px solid #cfcfc9; border-radius: 50%; background: #fff; color: #6d6d67; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
-.saif-clip:hover { color: #5b66cc; border-color: #5b66cc; }
-.saif-clip.active { color: #5b66cc; border-color: #5b66cc; background: #eef0ff; }
-.saif-composer-input { flex: 1; box-sizing: border-box; border: 1.5px solid #cfcfc9; border-radius: 22px; padding: 13px 18px; font-family: inherit; font-size: 14.5px; line-height: 1.4; resize: none; max-height: 140px; background: #fff; color: #1a1a1a; }
-.saif-composer-input:focus { outline: none; border-color: #5b66cc; }
-.saif-send { width: 48px; height: 48px; flex-shrink: 0; border: none; border-radius: 50%; background: #5b66cc; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
-.saif-send:hover:not(:disabled) { background: #4a55bb; }
-.saif-send:disabled { background: #c4c4bd; cursor: not-allowed; }
+/* real textarea styled like SAGE .input */
+.chat-composer textarea.input {
+  display: block; height: 46px; min-height: 46px; max-height: 130px;
+  padding: 12px 16px; line-height: 1.4; resize: none;
+  font-family: 'Geist', system-ui; color: var(--ink);
+}
+.chat-composer textarea.input:focus { outline: none; border-color: var(--forest); }
+.chat-composer .mic-btn.recording { background: var(--mint); border-color: var(--forest); }
+.chat-composer .send:disabled { background: var(--sage-soft); color: var(--ink-4); cursor: not-allowed; }
 
-.saif-foot { margin-top: 12px; text-align: center; }
-.saif-link { color: #5b66cc; font-size: 13px; text-decoration: none; background: none; border: none; cursor: pointer; font-family: inherit; }
-.saif-link:hover { text-decoration: underline; }
+/* report attached row */
+.report-attached {
+  max-width: 820px; width: 100%; margin: 10px auto 0; padding: 0 48px;
+  display: flex; align-items: center; gap: 10px;
+}
+.ref-chip {
+  display: inline-flex; align-items: center; padding: 4px 10px;
+  background: var(--mint-quiet); border: 1px solid rgba(164,255,207,0.4);
+  border-radius: var(--r-pill); font-size: 11.5px; font-weight: 500; color: var(--forest);
+}
+
+/* paste-report panel */
+.attach-panel {
+  max-width: 820px; width: 100%; margin: 12px auto 0; padding: 14px 48px 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.attach-label { font-family: 'Geist', system-ui; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.attach-input {
+  width: 100%; box-sizing: border-box; border: 1px solid var(--sage-line);
+  border-radius: var(--r); padding: 10px 12px; font-family: 'Geist', system-ui;
+  font-size: 13.5px; line-height: 1.5; resize: vertical; background: var(--white); color: var(--ink);
+}
+.attach-input:focus { outline: none; border-color: var(--forest); }
+.attach-row { display: flex; align-items: center; gap: 12px; }
+
+/* small link button */
+.link-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500; color: var(--forest); text-decoration: underline; }
+.link-btn:hover { color: var(--ink); }
+
+/* mobile: tighten the 48px side padding */
+@media (max-width: 860px) {
+  .chat-note-row { padding: 12px 16px; }
+  .chat-messages { padding: 24px 16px; }
+  .chat-composer { padding: 14px 16px 16px; }
+  .composer-hint, .chat-demo-banner, .report-attached, .attach-panel { padding-left: 16px; padding-right: 16px; }
+}
 </style>
