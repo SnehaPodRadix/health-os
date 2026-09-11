@@ -15,6 +15,7 @@ useHead({ title: 'Shared · Health OS' });
 type SaifShareStatus = 'active' | 'expiring' | 'expired' | 'revoked';
 interface SaifShare {
   id: string;
+  code?: string; // stable share code → /s/<code>
   who: string;
   tag?: string; // e.g. "family"
   what: string;
@@ -24,29 +25,17 @@ interface SaifShare {
   status: SaifShareStatus;
 }
 
-// ---- demo seed (matches the reference: Active 3 · Expired 4 · Revoked 2) -----
-const SAIF_SEED: SaifShare[] = [
-  { id: 's1', who: 'Dr. Ananya Kapoor', what: 'Summary for a new doctor · Basics, active meds, recent labs, diagnoses', sharedOn: 'Shared 12 Aug 2026', expiry: 'Expires in 5 days', opened: 'Opened 3 times · last on 14 Aug', status: 'active' },
-  { id: 's2', who: 'Dr. Sameer Rao', what: 'Therapy history · Session notes since June, GAD-7 assessments', sharedOn: 'Shared 28 Jul 2026', expiry: 'Never expires', opened: 'Opened 8 times · last today', status: 'active' },
-  { id: 's3', who: 'Anjali Menon', tag: 'family', what: 'Emergency card · Blood type, allergies, meds, contact', sharedOn: 'Shared 20 Jul 2026', expiry: 'Expires in 2 days', opened: 'Opened once · on 22 Jul', status: 'expiring' },
-  { id: 's4', who: 'Dr. Rehan Shaikh', what: 'Lab results · Lipid panel, HbA1c', sharedOn: 'Shared 2 Jun 2026', expiry: 'Expired 9 Jun 2026', opened: 'Opened 2 times', status: 'expired' },
-  { id: 's5', who: 'City Diagnostics', what: 'Full report · CBC + metabolic panel', sharedOn: 'Shared 15 May 2026', expiry: 'Expired 22 May 2026', opened: 'Opened once', status: 'expired' },
-  { id: 's6', who: 'Dr. Meera Iyer', what: 'Summary for a new doctor · Basics, active meds', sharedOn: 'Shared 3 Apr 2026', expiry: 'Expired 10 Apr 2026', opened: 'Opened 4 times', status: 'expired' },
-  { id: 's7', who: 'Apollo Pharmacy', what: 'Prescription · Active medications list', sharedOn: 'Shared 20 Mar 2026', expiry: 'Expired 27 Mar 2026', opened: 'Never opened', status: 'expired' },
-  { id: 's8', who: 'Dr. Vivek Nair', what: 'Therapy history · Session notes', sharedOn: 'Shared 10 Feb 2026', expiry: 'Revoked 15 Feb 2026', opened: 'Opened once', status: 'revoked' },
-  { id: 's9', who: 'MaxLife Insurance', what: 'Full report · Annual checkup', sharedOn: 'Shared 5 Jan 2026', expiry: 'Revoked 8 Jan 2026', opened: 'Opened 3 times', status: 'revoked' },
-];
-
+// Starts empty — shares are added by the user via "Share something new".
 const STORAGE_KEY = 'saif-shares';
-const shares = useState<SaifShare[]>('saif-shares', () => [...SAIF_SEED]);
+const shares = useState<SaifShare[]>('saif-shares', () => []);
 
-// Hydrate once on the client (fall back to the seed).
+// Hydrate once on the client from whatever the user has saved.
 if (import.meta.client) {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) shares.value = parsed;
+      if (Array.isArray(parsed)) shares.value = parsed;
     }
   } catch {
     /* ignore malformed storage */
@@ -95,9 +84,32 @@ function saifTodayLabel() {
   }
 }
 
+// ---- links ------------------------------------------------------------------
+function saifOrigin() {
+  return (import.meta.client && window.location.origin) || '';
+}
+// A stable link per share, on THIS deployment's own domain.
+function saifLinkFor(s: SaifShare) {
+  if (!s.code) {
+    s.code = saifCode();
+    saifPersist();
+  }
+  return `${saifOrigin()}/s/${s.code}`;
+}
+async function saifCopy(link: string) {
+  try {
+    if (import.meta.client && navigator.clipboard) await navigator.clipboard.writeText(link);
+  } catch {
+    /* clipboard blocked — the link is still shown in the toast */
+  }
+}
+
 // ---- per-share actions ------------------------------------------------------
-function saifViewLink(s: SaifShare) {
-  saifToast(`Link copied — sage.app/s/${saifCode()}`);
+async function saifViewLink(s: SaifShare) {
+  const link = saifLinkFor(s);
+  await saifCopy(link);
+  if (import.meta.client) window.open(link, '_blank', 'noopener');
+  saifToast(`Link copied — ${link.replace(/^https?:\/\//, '')}`);
 }
 function saifRevoke(s: SaifShare) {
   s.status = 'revoked';
@@ -111,12 +123,14 @@ function saifExtend(s: SaifShare) {
   saifPersist();
   saifToast('Extended by 30 days');
 }
-function saifReshare(s: SaifShare) {
+async function saifReshare(s: SaifShare) {
   s.status = 'active';
   s.expiry = 'Expires in 7 days';
   s.sharedOn = `Shared ${saifTodayLabel()}`;
+  s.code = saifCode(); // fresh link on re-share
   saifPersist();
   tab.value = 'active';
+  await saifCopy(saifLinkFor(s));
   saifToast('Re-shared · link copied');
 }
 
@@ -211,7 +225,7 @@ const saifSummary = computed(() => {
 });
 
 // Generate the share link → create the active share from the current config.
-function saifGenerate() {
+async function saifGenerate() {
   const expiryLabel = cfg.value.expiry === 'Never'
     ? 'Never expires'
     : cfg.value.expiry === '24 h'
@@ -219,6 +233,7 @@ function saifGenerate() {
       : `Expires in ${cfg.value.expiry}`;
   const nw: SaifShare = {
     id: (import.meta.client && crypto.randomUUID?.()) || `share_${Date.now()}`,
+    code: saifCode(),
     who: cfg.value.who,
     tag: cfg.value.tag,
     what: cfg.value.what,
@@ -231,7 +246,9 @@ function saifGenerate() {
   saifPersist();
   tab.value = 'active';
   drawerOpen.value = false;
-  saifToast(`Link copied — sage.app/s/${saifCode()}`);
+  const link = saifLinkFor(nw);
+  await saifCopy(link);
+  saifToast(`Link copied — ${link.replace(/^https?:\/\//, '')}`);
 }
 </script>
 
@@ -243,12 +260,21 @@ function saifGenerate() {
       <div>
         <h1 class="h-hero">Who has <span class="italic">what</span></h1>
         <p class="sub mt-8">
-          {{ activeCount }} active share{{ activeCount === 1 ? '' : 's' }} · you can revoke access at any time.
+          <template v-if="shares.length">{{ activeCount }} active share{{ activeCount === 1 ? '' : 's' }} · you can revoke access at any time.</template>
+          <template v-else>Nothing shared yet — you're in control of what leaves your records.</template>
         </p>
       </div>
       <button class="btn small dark" type="button" @click="saifOpenDrawer">Share something new</button>
     </div>
 
+    <!-- empty state -->
+    <div v-if="!shares.length" class="share-empty-hero">
+      <h2>Nothing shared yet</h2>
+      <p>When you share a record or a summary, it shows up here — with who has it, what they can see, and when it expires. You can revoke access anytime.</p>
+      <button class="btn primary" type="button" @click="saifOpenDrawer">Share something new</button>
+    </div>
+
+    <template v-else>
     <div class="filter-bar">
       <span class="chip" :class="{ on: tab === 'active' }" @click="tab = 'active'">Active <span class="count">{{ activeCount }}</span></span>
       <span class="chip" :class="{ on: tab === 'expired' }" @click="tab = 'expired'">Expired <span class="count">{{ expiredCount }}</span></span>
@@ -298,6 +324,7 @@ function saifGenerate() {
     <div v-else class="shared-empty">
       No {{ tab }} shares.
     </div>
+    </template>
 
     <p class="small muted mt-32">
       Sharing always happens from the record itself — open a record and tap Share. Templates like
@@ -484,6 +511,22 @@ function saifGenerate() {
 .shared-empty {
   padding: 48px 0; text-align: center;
   font-family: 'Geist', system-ui; font-size: 13.5px; color: var(--ink-3);
+}
+
+/* zero-shares empty state */
+.share-empty-hero {
+  margin-top: 28px; padding: 56px 40px; text-align: center;
+  border: 1px solid var(--sage-line); border-radius: var(--r-lg, 18px);
+  background: var(--glass-light);
+}
+.share-empty-hero h2 {
+  font-family: 'Familjen Grotesk', system-ui;
+  font-size: 22px; font-weight: 500; letter-spacing: -0.018em; color: var(--ink);
+  margin-bottom: 10px;
+}
+.share-empty-hero p {
+  max-width: 440px; margin: 0 auto 22px;
+  font-family: 'Geist', system-ui; font-size: 13.5px; line-height: 1.6; color: var(--ink-3);
 }
 
 /* ---- template drawer (fixed overlay) ---- */
