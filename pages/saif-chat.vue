@@ -42,7 +42,6 @@ interface SaifMessage {
   kind?: SaifKind; // guardrail styling
 }
 interface SaifChatState {
-  report: string; // manually pasted report (extra context on top of records)
   messages: SaifMessage[];
   mode: 'live' | 'demo';
   sending: boolean;
@@ -50,7 +49,6 @@ interface SaifChatState {
 
 // ---- state (namespaced so it won't clash with the other dev's state) --------
 const saifState = useState<SaifChatState>('saif-chat-state', () => ({
-  report: '',
   messages: [],
   mode: 'live',
   sending: false,
@@ -91,32 +89,8 @@ const saifRecordsContext = computed(() => {
   return out;
 });
 
-// Records context + any manually pasted report → the single context string.
-const saifContext = computed(() => {
-  const parts: string[] = [];
-  if (saifRecordsContext.value) parts.push(saifRecordsContext.value);
-  const manual = saifState.value.report.trim();
-  if (manual) parts.push(`Additional report pasted by the user:\n${manual}`);
-  return parts.join('\n\n');
-});
-const saifHasManualReport = computed(() => saifState.value.report.trim().length > 0);
-
-// Paperclip → paste-report panel (optional extra context).
-const saifShowAttach = ref(false);
-const saifReportDraft = ref('');
-function saifToggleAttach() {
-  saifReportDraft.value = saifState.value.report;
-  saifShowAttach.value = !saifShowAttach.value;
-}
-function saifAttachReport() {
-  saifState.value.report = saifReportDraft.value.trim();
-  saifShowAttach.value = false;
-}
-function saifClearReport() {
-  saifState.value.report = '';
-  saifReportDraft.value = '';
-  saifShowAttach.value = false;
-}
+// The user's saved medical records are the chat's context.
+const saifContext = computed(() => saifRecordsContext.value);
 
 // Seed a greeting on first load.
 const SAIF_GREETING =
@@ -461,39 +435,7 @@ function saifOnComposerKey(e: KeyboardEvent) {
       </div>
     </div>
 
-    <!-- paste-report panel (opened by the clip) -->
-    <div v-if="saifShowAttach" class="attach-panel">
-      <label class="attach-label">Paste extra text (optional — Sage already reads your saved records)</label>
-      <textarea
-        v-model="saifReportDraft"
-        class="attach-input"
-        rows="5"
-        placeholder="Paste lab results or a report here — I'll use it as extra context."
-      ></textarea>
-      <div class="attach-row">
-        <button type="button" class="btn mint small" @click="saifAttachReport">Attach text</button>
-        <button type="button" class="link-btn" @click="saifShowAttach = false">Cancel</button>
-      </div>
-    </div>
-
-    <div v-if="saifHasManualReport" class="report-attached">
-      <span class="ref-chip">Extra text attached · {{ saifState.report.length }} chars</span>
-      <button type="button" class="link-btn" @click="saifClearReport">remove</button>
-    </div>
-
     <div class="chat-composer">
-      <button
-        type="button"
-        class="mic-btn"
-        :class="{ recording: saifHasManualReport }"
-        aria-label="Attach extra text"
-        title="Paste extra text as context"
-        @click="saifToggleAttach"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" />
-        </svg>
-      </button>
       <textarea
         v-model="saifDraft"
         class="input"
@@ -528,8 +470,7 @@ function saifOnComposerKey(e: KeyboardEvent) {
       </button>
     </div>
     <div class="composer-hint">
-      <template v-if="saifMicSupported">Tap the mic to dictate · </template>attach extra text with the clip ·
-      replies fall back to a demo when the API is unavailable ·
+      <template v-if="saifMicSupported">Tap the mic to dictate · </template>replies fall back to a demo when the API is unavailable ·
       <button type="button" class="link-btn" @click="saifResetChat">clear chat</button>
     </div>
   </div>
@@ -605,7 +546,6 @@ function saifOnComposerKey(e: KeyboardEvent) {
   font-family: 'Geist', system-ui; color: var(--ink);
 }
 .chat-composer textarea.input:focus { outline: none; border-color: var(--forest); }
-.chat-composer .mic-btn.recording { background: var(--mint); border-color: var(--forest); }
 .chat-composer .send:disabled { background: var(--sage-soft); color: var(--ink-4); cursor: not-allowed; }
 
 /* voice mic: live = pulsing red */
@@ -618,31 +558,6 @@ function saifOnComposerKey(e: KeyboardEvent) {
   50% { box-shadow: 0 0 0 6px rgba(240, 68, 56, 0); }
 }
 
-/* report attached row */
-.report-attached {
-  max-width: 820px; width: 100%; margin: 10px auto 0; padding: 0 48px;
-  display: flex; align-items: center; gap: 10px;
-}
-.ref-chip {
-  display: inline-flex; align-items: center; padding: 4px 10px;
-  background: var(--mint-quiet); border: 1px solid rgba(164,255,207,0.4);
-  border-radius: var(--r-pill); font-size: 11.5px; font-weight: 500; color: var(--forest);
-}
-
-/* paste-report panel */
-.attach-panel {
-  max-width: 820px; width: 100%; margin: 12px auto 0; padding: 14px 48px 0;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.attach-label { font-family: 'Geist', system-ui; font-size: 12px; font-weight: 500; color: var(--ink-3); }
-.attach-input {
-  width: 100%; box-sizing: border-box; border: 1px solid var(--sage-line);
-  border-radius: var(--r); padding: 10px 12px; font-family: 'Geist', system-ui;
-  font-size: 13.5px; line-height: 1.5; resize: vertical; background: var(--white); color: var(--ink);
-}
-.attach-input:focus { outline: none; border-color: var(--forest); }
-.attach-row { display: flex; align-items: center; gap: 12px; }
-
 /* small link button */
 .link-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500; color: var(--forest); text-decoration: underline; }
 .link-btn:hover { color: var(--ink); }
@@ -653,6 +568,6 @@ function saifOnComposerKey(e: KeyboardEvent) {
   .sage-guard { margin: 12px 16px 0; }
   .chat-messages { padding: 24px 16px; }
   .chat-composer { padding: 14px 16px 16px; }
-  .composer-hint, .chat-demo-banner, .report-attached, .attach-panel { padding-left: 16px; padding-right: 16px; }
+  .composer-hint, .chat-demo-banner { padding-left: 16px; padding-right: 16px; }
 }
 </style>
