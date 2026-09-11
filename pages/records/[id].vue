@@ -73,7 +73,7 @@ function flag(f: string) {
             <template v-if="note">
               <div class="mt-32" />
               <div class="eyebrow">Your note</div>
-              <p style="color: var(--text-2); font-size: 13.5px; margin: 0;">"{{ note }}"</p>
+              <p style="color: var(--ink-2); font-size: 13.5px; margin: 0;">"{{ note }}"</p>
             </template>
           </template>
 
@@ -93,7 +93,7 @@ function flag(f: string) {
           <!-- ORIGINAL -->
           <template v-else>
             <div class="eyebrow" style="margin-bottom: 8px;">Text read from your record</div>
-            <pre class="record-original">{{ record.text }}</pre>
+            <pre class="record-text">{{ record.text }}</pre>
           </template>
         </div>
 
@@ -101,7 +101,7 @@ function flag(f: string) {
         <div class="detail-side">
           <div v-if="record.summary" class="side-block">
             <div class="eyebrow">In short</div>
-            <p style="font-size: 13px; color: var(--text-2); margin: 0; line-height: 1.55;">{{ record.summary }}</p>
+            <p style="font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.55;">{{ record.summary }}</p>
           </div>
           <div class="side-block detail-facts">
             <div class="eyebrow">Details</div>

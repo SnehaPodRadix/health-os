@@ -149,7 +149,7 @@ function dismiss(key: string) {
   <AppTopbar crumb="Insights" />
 
   <div class="pbody pbody-narrow">
-    <h1 class="h1 large">Worth noticing</h1>
+    <h1 class="h1 large">Worth <span class="italic">noticing</span></h1>
     <p class="sub mt-8">Patterns from your own records. Not diagnoses.</p>
 
     <div class="mt-32" />

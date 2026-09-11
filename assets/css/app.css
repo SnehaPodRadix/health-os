@@ -50,8 +50,13 @@ body { background: #E8EAE5; }
 /* SAGE's base .btn has no fill; give bare buttons a visible light glass look. */
 .btn { background: var(--glass-light); color: var(--forest); }
 .btn:hover { background: var(--glass-light-hover); }
-.btn.primary { background: var(--forest); color: var(--mint); font-weight: 600; }
-.btn.primary:hover { background: #0d3527; }
+/* SAGE has no forest-filled button — the primary CTA is mint (forest text). */
+.btn.primary, .btn.mint { background: var(--mint); color: var(--forest); font-weight: 600; }
+.btn.primary:hover, .btn.mint:hover { background: #8FF3BE; }
+.btn.light { background: var(--glass-light); color: var(--forest); }
+.btn.light:hover { background: var(--glass-light-hover); }
+.btn.outline { background: transparent; border: 1px solid var(--sage); color: var(--forest); }
+.btn.outline:hover { background: var(--glass-light); }
 .btn.ghost { background: transparent; color: var(--ink-2); }
 .btn.ghost:hover { background: var(--glass-light); color: var(--forest); }
 .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
@@ -236,6 +241,18 @@ body { background: #E8EAE5; }
 .extract-item .k { color: var(--ink-3); font-size: 13px; }
 .extract-item .v { font-weight: 500; }
 .extract-item.pending .v { color: var(--ink-4); font-weight: 400; }
+
+/* ---------- record detail: value flags + facts (re-added after SAGE reskin) ---------- */
+.flag { padding: 2px 9px; border-radius: var(--r-pill); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.flag.low, .flag.high { background: var(--danger-soft); color: var(--danger); }
+.flag.ok, .flag.normal { background: var(--mint-quiet); color: var(--forest); }
+.detail-facts .f { display: grid; grid-template-columns: 84px 1fr; gap: 10px; padding: 7px 0; font-size: 13px; }
+.detail-facts .f .k { color: var(--ink-3); font-size: 12.5px; }
+
+/* keep Insights mini-graph bars a fixed sparkline width so sparse (1–2 point) charts
+   don't stretch to full width under SAGE's flex:1 bar styling */
+.mini-graph { justify-content: flex-start; }
+.mini-graph .col { flex: 0 0 24px; }
 
 /* ---------- mobile nav toggle (hidden on desktop) ---------- */
 .nav-toggle {

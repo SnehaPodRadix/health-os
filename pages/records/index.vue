@@ -84,7 +84,7 @@ function exportAll() {
   <div class="pbody">
     <div class="home-header">
       <div>
-        <h1 class="h1 large">Your health, over time</h1>
+        <h1 class="h1 large">Your health, <span class="italic">over time</span></h1>
         <p class="sub mt-8">
           {{ records.length }} record{{ records.length === 1 ? '' : 's' }}<span v-if="rangeLabel"> · {{ rangeLabel }}</span>
         </p>
