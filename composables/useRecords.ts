@@ -52,6 +52,13 @@ export function useRecords() {
     }
   }
 
+  function updateRecord(id: string, patch: Partial<HealthRecord>) {
+    const idx = records.value.findIndex((r) => r.id === id);
+    if (idx < 0) return;
+    records.value = records.value.map((r) => (r.id === id ? { ...r, ...patch } : r));
+    persist();
+  }
+
   function addRecord(fields: Omit<HealthRecord, 'id' | 'createdAt'>): HealthRecord {
     const record: HealthRecord = {
       ...fields,
@@ -63,5 +70,5 @@ export function useRecords() {
     return record;
   }
 
-  return { records, addRecord };
+  return { records, addRecord, updateRecord };
 }
