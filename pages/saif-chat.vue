@@ -7,30 +7,22 @@
  *
  * This is ONLY the chat. The health report is uploaded by a separate feature;
  * when we merge, that feature just sets `saifState.value.report` and the chat
- * automatically passes it to Gemini as context (see saifSystemPrompt()).
+ * automatically passes it to Gemini as context (via /api/saif-chat).
  *
- * If the Gemini key is missing / over quota / erroring, we transparently fall
- * back to a canned "Demo mode" so a live demo never breaks.
- *
- * SECURITY NOTE: calls Gemini directly from the browser using a *public* key
- * (NUXT_PUBLIC_SAIF_GEMINI_API_KEY). Fine for a hackathon throwaway key. To keep
- * it secret, move the callGemini() fetch into server/api/saif-chat.post.ts.
+ * The Gemini call runs server-side (POST /api/saif-chat) using the shared secret
+ * key (GEMINI_API_KEY), so the key is never exposed to the browser. If that call
+ * fails / times out / has no key, we fall back to a canned "Demo mode" so a live
+ * demo never breaks.
  */
 
 // Served at /chat (file stays saif-prefixed to avoid clashing with the other dev).
 definePageMeta({ alias: ['/chat'] });
 
 // ---- config -----------------------------------------------------------------
-const runtime = useRuntimeConfig();
-const SAIF_GEMINI_KEY = (runtime.public.saifGeminiApiKey as string) || '';
-// Lite model: ~2s replies with no wasted "thinking" tokens (3.6-flash took ~30s).
-// Verified working with the current key (Sept 2026). Older flash models are retired.
-const SAIF_GEMINI_MODEL = 'gemini-3.5-flash-lite';
-// Snappy mode: this key queues 20-50s, so wait only briefly for a real answer,
-// then fall back to the instant demo reply. Raise this if you swap in a fast
-// AIzaSy key and want to always wait for the live response.
+// Snappy mode: the demo key can queue 20-50s, so wait only briefly for a real
+// answer, then fall back to the instant demo reply. Raise this once a fast key
+// is in place if you'd rather always wait for the live response.
 const SAIF_GEMINI_TIMEOUT_MS = 7000;
-const SAIF_GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${SAIF_GEMINI_MODEL}:generateContent`;
 
 // ---- types ------------------------------------------------------------------
 type SaifRole = 'user' | 'assistant';
@@ -50,7 +42,7 @@ interface SaifChatState {
 const saifState = useState<SaifChatState>('saif-chat-state', () => ({
   report: '',
   messages: [],
-  mode: SAIF_GEMINI_KEY ? 'live' : 'demo',
+  mode: 'live', // optimistic; flips to 'demo' if the server call fails
   sending: false,
 }));
 
@@ -97,21 +89,15 @@ async function saifSend() {
   let reply: string;
   let usedDemo: boolean;
 
-  // Always try live if we have a key — don't stay stuck in demo. The mode badge
-  // reflects the LAST attempt, so a single fast reply flips it back to live.
-  if (SAIF_GEMINI_KEY) {
-    try {
-      reply = await saifCallGemini();
-      saifState.value.mode = 'live';
-      usedDemo = false;
-    } catch (err) {
-      // Timeout / quota (429) / network / bad model → demo reply for THIS message.
-      console.warn('[saif-chat] Gemini failed, using demo reply:', err);
-      saifState.value.mode = 'demo';
-      usedDemo = true;
-      reply = saifDummyReply(text);
-    }
-  } else {
+  // Always try live via the server route — don't stay stuck in demo. The mode
+  // badge reflects the LAST attempt, so a single good reply flips it back to live.
+  try {
+    reply = await saifCallGemini();
+    saifState.value.mode = 'live';
+    usedDemo = false;
+  } catch (err) {
+    // Timeout / quota (429) / no key / network → demo reply for THIS message.
+    console.warn('[saif-chat] chat API failed, using demo reply:', err);
     saifState.value.mode = 'demo';
     usedDemo = true;
     reply = saifDummyReply(text);
@@ -123,93 +109,65 @@ async function saifSend() {
 }
 
 function saifRetryLive() {
-  if (!SAIF_GEMINI_KEY) return;
   saifState.value.mode = 'live';
 }
 
 function saifResetChat() {
   saifState.value.messages = [];
-  saifState.value.mode = SAIF_GEMINI_KEY ? 'live' : 'demo';
+  saifState.value.mode = 'live';
   saifState.value.messages.push({
     role: 'assistant',
     text: "Hi! I'm your Health OS assistant. Ask me anything about your health or your reports. I'm an AI guide, not a substitute for your doctor.",
-    demo: saifState.value.mode === 'demo',
+    demo: false,
   });
 }
 
-// ---- Gemini call ------------------------------------------------------------
-function saifSystemPrompt(): string {
-  const base = [
-    'You are Health OS Assistant, a warm, careful AI health guide.',
-    'Explain things in plain language. Keep replies concise — a few short sentences or a tight list.',
-    'You are NOT a doctor and you do NOT diagnose. For anything concerning, tell the user to consult a licensed healthcare professional.',
-    'Never invent lab values or numbers that are not present in the report.',
-    'If a question is unrelated to health, gently steer back.',
-  ].join(' ');
-  if (saifHasReport.value) {
-    return `${base}\n\nThe user shared this health report:\n"""\n${saifState.value.report}\n"""`;
-  }
-  return base;
+// ---- Gemini call (via server route, key stays server-side) ------------------
+interface SaifChatResponse {
+  text: string;
+  model: string;
+  usage: { promptTokens: number; outputTokens: number; totalTokens: number };
 }
 
 async function saifCallGemini(): Promise<string> {
-  if (!SAIF_GEMINI_KEY) throw new Error('no-key');
-
-  const contents = saifState.value.messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.text }],
-  }));
-
-  // Abort if the request outlives the timeout (throttled key → instant fallback).
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), SAIF_GEMINI_TIMEOUT_MS);
   const t0 = Date.now();
-  let res: Response;
   try {
-    res = await fetch(`${SAIF_GEMINI_URL}?key=${encodeURIComponent(SAIF_GEMINI_KEY)}`, {
+    const res = await $fetch<SaifChatResponse>('/api/saif-chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: saifSystemPrompt() }] },
-        contents,
-        generationConfig: { temperature: 0.6, maxOutputTokens: 800 },
-      }),
+      timeout: SAIF_GEMINI_TIMEOUT_MS, // aborts slow calls → demo fallback
+      body: {
+        messages: saifState.value.messages.map((m) => ({ role: m.role, text: m.text })),
+        report: saifState.value.report,
+      },
     });
+    saifRecordUsage({
+      ms: Date.now() - t0,
+      ok: true,
+      model: res.model,
+      promptTokens: res.usage?.promptTokens || 0,
+      outputTokens: res.usage?.outputTokens || 0,
+      totalTokens: res.usage?.totalTokens || 0,
+    });
+    if (!res.text) throw new Error('empty');
+    return res.text;
   } catch (e) {
-    const reason = (e as Error)?.name === 'AbortError' ? 'timeout' : 'network';
+    const err = e as { name?: string; statusCode?: number; message?: string };
+    const reason =
+      err?.name === 'AbortError' || /timeout|aborted/i.test(err?.message || '')
+        ? 'timeout'
+        : err?.statusCode
+          ? `http-${err.statusCode}`
+          : 'network';
     saifRecordUsage({ ms: Date.now() - t0, ok: false, reason });
     throw e;
-  } finally {
-    clearTimeout(timer);
   }
-
-  if (!res.ok) {
-    saifRecordUsage({ ms: Date.now() - t0, ok: false, reason: `http-${res.status}` });
-    throw new Error(`gemini-http-${res.status}`); // 429 = quota/limit reached
-  }
-  const data = await res.json();
-  const u = data?.usageMetadata || {};
-  saifRecordUsage({
-    ms: Date.now() - t0,
-    ok: true,
-    promptTokens: u.promptTokenCount || 0,
-    outputTokens: u.candidatesTokenCount || 0,
-    totalTokens: u.totalTokenCount || 0,
-  });
-  const text: string | undefined = data?.candidates?.[0]?.content?.parts
-    ?.map((p: { text?: string }) => p.text || '')
-    .join('')
-    .trim();
-  if (!text) throw new Error('gemini-empty');
-  return text;
 }
 
 // Log one live API call to localStorage so /usage can show real numbers.
 // (Google doesn't expose per-key usage via the API key, so we track it here.)
 interface SaifUsageEntry {
   ts: number;
-  model: string;
+  model?: string;
   ms: number;
   ok: boolean;
   reason?: string;
@@ -217,12 +175,12 @@ interface SaifUsageEntry {
   outputTokens?: number;
   totalTokens?: number;
 }
-function saifRecordUsage(partial: Omit<SaifUsageEntry, 'ts' | 'model'>) {
+function saifRecordUsage(partial: Omit<SaifUsageEntry, 'ts'>) {
   if (typeof localStorage === 'undefined') return;
   try {
     const raw = localStorage.getItem('saif-usage-log');
     const arr: SaifUsageEntry[] = raw ? JSON.parse(raw) : [];
-    arr.push({ ts: Date.now(), model: SAIF_GEMINI_MODEL, ...partial });
+    arr.push({ ts: Date.now(), ...partial });
     while (arr.length > 300) arr.shift();
     localStorage.setItem('saif-usage-log', JSON.stringify(arr));
   } catch {
@@ -340,7 +298,7 @@ function saifOnComposerKey(e: KeyboardEvent) {
         <button type="button" class="saif-chip-btn" @click="saifClearReport">remove</button>
       </div>
 
-      <div v-if="saifState.mode === 'demo' && SAIF_GEMINI_KEY" class="saif-banner">
+      <div v-if="saifState.mode === 'demo'" class="saif-banner">
         ⚠️ Live AI is unavailable (quota or error) — showing pre-defined demo replies.
         <button type="button" class="saif-chip-btn" @click="saifRetryLive">try live again</button>
       </div>

@@ -16,7 +16,7 @@ definePageMeta({ alias: ['/usage'] });
 
 // Which model powers which feature. Keep in sync with each feature file.
 const SAIF_FEATURE_MODELS = [
-  { feature: 'Health chat', route: '/chat', model: 'gemini-3.5-flash-lite', note: 'Fast lite model, no "thinking" tokens' },
+  { feature: 'Health chat', route: '/chat', model: 'gemini-3.1-flash-lite', note: 'Server-side via GEMINI_API_KEY (set GEMINI_MODEL to override)' },
   // Add rows here as features land (e.g. report analysis, summaries).
 ];
 
