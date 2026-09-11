@@ -59,6 +59,11 @@ export function useRecords() {
     persist();
   }
 
+  function deleteRecord(id: string) {
+    records.value = records.value.filter((r) => r.id !== id);
+    persist();
+  }
+
   function addRecord(fields: Omit<HealthRecord, 'id' | 'createdAt'>): HealthRecord {
     const record: HealthRecord = {
       ...fields,
@@ -70,5 +75,5 @@ export function useRecords() {
     return record;
   }
 
-  return { records, addRecord, updateRecord };
+  return { records, addRecord, updateRecord, deleteRecord };
 }

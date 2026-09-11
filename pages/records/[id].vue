@@ -1,8 +1,16 @@
 <script setup lang="ts">
 const route = useRoute();
-const { records } = useRecords();
+const { records, deleteRecord } = useRecords();
 
 const record = computed(() => records.value.find((r) => r.id === route.params.id));
+
+const confirmingDelete = ref(false);
+async function doDelete() {
+  const r = record.value;
+  if (!r) return;
+  deleteRecord(r.id);
+  await navigateTo('/records');
+}
 useHead(() => ({ title: `${record.value?.title ?? 'Record'} · Sage` }));
 
 type View = 'plain' | 'clinical' | 'original';
@@ -38,8 +46,20 @@ function flag(f: string) {
   <div class="pbody">
     <template v-if="record">
       <div class="detail-head">
-        <div class="eyebrow">{{ record.type || record.category }}</div>
-        <h1 class="h1">{{ record.title }}</h1>
+        <div class="detail-head-row">
+          <div>
+            <div class="eyebrow">{{ record.type || record.category }}</div>
+            <h1 class="h1">{{ record.title }}</h1>
+          </div>
+          <div class="detail-actions">
+            <button v-if="!confirmingDelete" type="button" class="btn small light del-btn" @click="confirmingDelete = true">Delete</button>
+            <template v-else>
+              <span class="del-confirm">Delete this record?</span>
+              <button type="button" class="btn small light" @click="confirmingDelete = false">Cancel</button>
+              <button type="button" class="btn small danger" @click="doDelete">Delete</button>
+            </template>
+          </div>
+        </div>
         <div class="meta">
           <span v-for="m in metaParts" :key="m">{{ m }}</span>
         </div>
@@ -124,3 +144,12 @@ function flag(f: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.detail-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.detail-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.del-confirm { font-size: 13px; color: var(--ink-2); }
+.del-btn:hover { color: var(--danger); }
+.btn.small.danger { background: var(--danger); color: #fff; }
+.btn.small.danger:hover { background: #7a3232; }
+</style>
